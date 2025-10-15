@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>rOtring 600 — Availability Matrix (Crisp SVG Check + Adaptive Tint)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --bg:#111; --ink:#ddd; --muted:#888; --line:#333; --head:#222; --accent:#ffcc66;
+    --disc-bg:#161616;
+  }
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;
+    padding:40px 24px;
+  }
+  h1{ text-align:center; color:var(--accent); margin:0 0 18px; font-size:1.6rem; }
+  .caption-top{ text-align:center; color:var(--muted); margin-bottom:10px; font-size:.95rem; }
+
+  table{ border-collapse:collapse; width:100%; max-width:1200px; margin:0 auto; }
+  th,td{ border:1px solid var(--line); padding:7px 10px; text-align:center; }
+  th{ background:var(--head); color:var(--accent); position:sticky; top:0; }
+  td:first-child{ text-align:left; font-weight:600; }
+
+  caption{
+    caption-side: bottom;
+    text-align:left;
+    border:1px solid var(--line);
+    border-top:none;
+    padding:10px 12px;
+    color:var(--muted);
+    font-size:.92rem; line-height:1.35;
+  }
+
+  .disc-col{ background:var(--disc-bg); }
+  .sep-col{ box-shadow: inset 2px 0 0 rgba(255,255,255,.03); }
+
+  /* Each row sets --c to the finish color; dots inherit it */
+  .dot{
+    color:var(--c);
+    font-weight:700;
+    position:relative;
+    display:inline-block;
+    line-height:1;
+    user-select:none;
+  }
+  .sel{ cursor:pointer; }
+  .sel:focus-visible{ outline:1px dashed #888; outline-offset:2px; border-radius:2px; }
+
+  /* Base legibility by tone */
+  .tone-dark .dot{ -webkit-text-stroke:0.20px rgba(255,255,255,0.18); text-shadow:0 0 0.25px rgba(255,255,255,0.20); }
+  .tone-light .dot{ -webkit-text-stroke:0.24px rgba(0,0,0,0.22); text-shadow:0 0 0.25px rgba(0,0,0,0.24); }
+  .very-dark .dot{ -webkit-text-stroke:0.42px rgba(255,255,255,0.36); text-shadow:0 0 0.5px rgba(255,255,255,0.34); }
+  .nearly-dark .dot{ -webkit-text-stroke:0.32px rgba(255,255,255,0.28); text-shadow:0 0 0.45px rgba(255,255,255,0.30); }
+
+  /* Vintage rings start as ○ with a mild presence */
+  .dim{ opacity:.85; }
+
+  /* Owned: neon on the dot only (kept from prior good state) */
+  .dot.owned{
+    opacity:1;
+    -webkit-text-stroke:0.9px rgba(255,255,255,0.80);
+    text-shadow:
+      0 0 1.1px rgba(255,255,255,0.78),
+      0 0 3px rgba(255,255,255,0.52),
+      0 0 10px currentColor,
+      0 0 16px currentColor;
+  }
+  .tone-light .dot.owned{
+    -webkit-text-stroke:0.9px rgba(0,0,0,0.76);
+    text-shadow:
+      0 0 1.1px rgba(0,0,0,0.74),
+      0 0 3px rgba(0,0,0,0.45),
+      0 0 10px currentColor,
+      0 0 16px currentColor;
+  }
+  @supports (color: color-mix(in srgb, white 50%, black 50%)) {
+    .tone-dark .dot.owned{
+      -webkit-text-stroke: 0.95px rgba(255,255,255,0.84);
+      text-shadow:
+        0 0 1.1px rgba(255,255,255,0.82),
+        0 0 2.6px rgba(255,255,255,0.50),
+        0 0 6px  color-mix(in srgb, currentColor 65%, white 35%),
+        0 0 12px color-mix(in srgb, currentColor 55%, white 45%),
+        0 0 18px color-mix(in srgb, currentColor 45%, white 55%);
+    }
+    .tone-dark.nearly-dark .dot.owned{
+      -webkit-text-stroke: 0.9px rgba(255,255,255,0.80);
+      text-shadow:
+        0 0 1px   rgba(255,255,255,0.78),
+        0 0 2.4px rgba(255,255,255,0.46),
+        0 0 5px  color-mix(in srgb, currentColor 62%, white 38%),
+        0 0 10px color-mix(in srgb, currentColor 52%, white 48%),
+        0 0 14px color-mix(in srgb, currentColor 42%, white 58%);
+    }
+    .tone-dark.very-dark .dot.owned{
+      -webkit-text-stroke: 1.05px rgba(255,255,255,0.88);
+      text-shadow:
+        0 0 1.3px rgba(255,255,255,0.86),
+        0 0 3.2px rgba(255,255,255,0.52),
+        0 0 7px  color-mix(in srgb, currentColor 70%, white 30%),
+        0 0 13px color-mix(in srgb, currentColor 58%, white 42%),
+        0 0 20px color-mix(in srgb, currentColor 46%, white 54%);
+    }
+  }
+  @supports not (color: color-mix(in srgb, white 50%, black 50%)) {
+    .tone-dark .dot.owned{
+      -webkit-text-stroke:0.95px rgba(255,255,255,0.84);
+      text-shadow:
+        0 0 1.1px rgba(255,255,255,0.82),
+        0 0 2.6px rgba(255,255,255,0.50),
+        0 0 6px  currentColor,
+        0 0 12px currentColor,
+        0 0 18px currentColor;
+    }
+    .tone-dark.nearly-dark .dot.owned{
+      -webkit-text-stroke:0.9px rgba(255,255,255,0.80);
+      text-shadow:
+        0 0 1px   rgba(255,255,255,0.78),
+        0 0 2.4px rgba(255,255,255,0.46),
+        0 0 5px  currentColor,
+        0 0 10px currentColor,
+        0 0 14px currentColor;
+    }
+    .tone-dark.very-dark .dot.owned{
+      -webkit-text-stroke:1.05px rgba(255,255,255,0.88);
+      text-shadow:
+        0 0 1.3px rgba(255,255,255,0.86),
+        0 0 3.2px rgba(255,255,255,0.52),
+        0 0 7px  currentColor,
+        0 0 13px currentColor,
+        0 0 20px currentColor;
+    }
+  }
+
+  /* Adaptive check tint (SVG uses --check) */
+  @supports (color: color-mix(in srgb, white 50%, black 50%)) {
+    .tone-light { --check: color-mix(in srgb, var(--c) 70%, black 30%); }
+    .tone-dark  { --check: color-mix(in srgb, var(--c) 60%, white 40%); }
+    .tone-dark.nearly-dark { --check: color-mix(in srgb, var(--c) 65%, white 35%); }
+    .tone-dark.very-dark  { --check: color-mix(in srgb, var(--c) 45%, white 55%); }
+  }
+  @supports not (color: color-mix(in srgb, white 50%, black 50%)) {
+    .tone-light { --check:#222; }
+    .tone-dark  { --check:#f4f4f4; }
+  }
+
+  /* SVG check inside the dot */
+  .check{
+    position:absolute; left:50%; top:50%;
+    transform:translate(-50%,-50%);
+    width:0.82em; height:0.82em; /* scales with font-size of dot */
+    display:block; pointer-events:none;
+  }
+  .check svg{ width:100%; height:100%; display:block; }
+  .check path{
+    fill:none; stroke:var(--check); stroke-width:2.2;
+    stroke-linecap:round; stroke-linejoin:round;
+    vector-effect:non-scaling-stroke; shape-rendering:geometricPrecision;
+  }
+
+  /* Color name legibility */
+  .ink-dark{ -webkit-text-stroke:0.3px rgba(255,255,255,.18); text-shadow:0 0 .3px rgba(255,255,255,.22); }
+  .ink-light{ -webkit-text-stroke:0.3px rgba(0,0,0,.18); text-shadow:0 0 .3px rgba(0,0,0,.22); }
+  .ink-black{ color:#222; -webkit-text-stroke:0.14px rgba(255,255,255,0.18); text-shadow:0 0 0.18px rgba(255,255,255,0.18); }
+</style>
+</head>
+<body>
+
+<h1>rOtring 600 — Availability by Color and Format</h1>
+<div class="caption-top">Click a dot to mark it as owned. Bullets are color-matched; darker columns are discontinued sizes.</div>
+
+<!-- Reset button -->
+<div style="max-width:1200px;margin:0 auto 16px;display:flex;justify-content:flex-end;">
+  <button id="resetOwned"
+    style="background:#222;color:#ddd;border:1px solid #333;padding:6px 10px;border-radius:6px;cursor:pointer;">
+    Reset owned
+  </button>
+</div>
+
+<table aria-describedby="notes">
+  <caption id="notes">
+    <strong>Notes:</strong><br>
+    * Shaded columns indicate legacy/discontinued size classes for the 600 mechanical pencil family; “2.0 mm” is the 600 Lead Holder variant.<br>
+    Bullets — <span>●</span> confirmed (current or discontinued), <span class="dim">○</span> early-run/vintage documented but not in current catalogs.
+    <div style="margin-top:10px; font-size:.85rem; color:#9aa;">
+      Rotring 600 Series Color Matrix — Revision 2025-10-14. Sources consulted: Rotring official listings, JetPens, Knockology, Dave’s Mechanical Pencils, JDirectItems Auction archives.
+    </div>
+  </caption>
+
+  <thead>
+    <tr>
+      <th>Color</th>
+      <th class="disc-col" title="Legacy/discontinued mechanical size">0.35 mm*</th>
+      <th>0.5 mm</th>
+      <th>0.7 mm</th>
+      <th class="disc-col" title="Legacy/discontinued mechanical size">0.9 mm*</th>
+      <th class="disc-col" title="Legacy/discontinued mechanical size">1.0 mm*</th>
+      <th class="disc-col sep-col" title="Lead holder variant in the 600 family">2.0 mm*</th>
+      <th>3-in-1</th>
+      <th>Ballpoint</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr class="tone-dark" style="--c:#612020;">
+      <td><span class="ink-dark" style="color:#612020;">Chocolat (Chocolate Truffle)</span></td>
+      <td></td><td><span class="dot sel" data-key="Chocolat|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td><span class="dot sel" data-key="Chocolat|Ballpoint">●</span></td>
+    </tr>
+    <tr class="tone-dark" style="--c:#B71C1C;">
+      <td><span class="ink-dark" style="color:#B71C1C;">Madder Red</span></td>
+      <td></td><td><span class="dot sel" data-key="Madder Red|0.5">●</span></td><td><span class="dot sel" data-key="Madder Red|0.7">●</span></td><td></td><td></td><td></td><td></td><td><span class="dot sel" data-key="Madder Red|Ballpoint">●</span></td>
+    </tr>
+    <tr class="tone-light" style="--c:#D88F8F;">
+      <td><span class="ink-light" style="color:#D88F8F;">Rose Gold</span></td>
+      <td></td><td><span class="dot sel" data-key="Rose Gold|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td><span class="dot sel" data-key="Rose Gold|Ballpoint">●</span></td>
+    </tr>
+    <tr class="tone-light" style="--c:#C6A94B;">
+      <td><span class="ink-light" style="color:#C6A94B;">Gold</span></td>
+      <td></td><td><span class="dot sel" data-key="Gold|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td><span class="dot sel" data-key="Gold|Ballpoint">●</span></td>
+    </tr>
+    <tr class="tone-light" style="--c:#F4D03F;">
+      <td><span class="ink-light" style="color:#F4D03F;">Loft Yellow</span></td>
+      <td></td><td><span class="dot sel" data-key="Loft Yellow|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td></td>
+    </tr>
+    <tr class="tone-light" style="--c:#7FEDEC;">
+      <td><span class="ink-light" style="color:#7FEDEC;">Ice Mint</span></td>
+      <td></td><td><span class="dot sel" data-key="Ice Mint|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td></td>
+    </tr>
+    <tr class="tone-dark" style="--c:#4A5A39;">
+      <td><span class="ink-dark" style="color:#4A5A39;">Camouflage Green</span></td>
+      <td></td><td><span class="dot sel" data-key="Camouflage Green|0.5">●</span></td><td><span class="dot sel" data-key="Camouflage Green|0.7">●</span></td><td></td><td></td><td></td><td><span class="dot sel" data-key="Camouflage Green|3-in-1">●</span></td><td><span class="dot sel" data-key="Camouflage Green|Ballpoint">●</span></td>
+    </tr>
+    <tr class="tone-dark" style="--c:#102A4A;">
+      <td><span class="ink-dark" style="color:#102A4A;">Dark / Midnight Blue</span></td>
+      <td></td><td><span class="dot sel" data-key="Dark / Midnight Blue|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td></td>
+    </tr>
+    <tr class="tone-dark" style="--c:#1D3A5F;">
+      <td><span class="ink-dark" style="color:#1D3A5F;">Iron Blue</span></td>
+      <td></td><td><span class="dot sel" data-key="Iron Blue|0.5">●</span></td><td><span class="dot sel" data-key="Iron Blue|0.7">●</span></td><td></td><td></td><td></td><td><span class="dot sel" data-key="Iron Blue|3-in-1">●</span></td><td><span class="dot sel" data-key="Iron Blue|Ballpoint">●</span></td>
+    </tr>
+    <tr class="tone-dark very-dark" style="--c:#000000;">
+      <td><span class="ink-black">Black</span></td>
+      <td><span class="dot sel" data-key="Black|0.35">●</span></td><td><span class="dot sel" data-key="Black|0.5">●</span></td><td><span class="dot sel" data-key="Black|0.7">●</span></td><td></td><td></td>
+      <td class="disc-col"><span class="dot sel" data-key="Black|2.0">●</span></td><td><span class="dot sel" data-key="Black|3-in-1">●</span></td><td><span class="dot sel" data-key="Black|Ballpoint">●</span></td>
+    </tr>
+    <tr class="tone-dark nearly-dark" style="--c:#555555;">
+      <td><span class="ink-dark" style="color:#555555;">Dark Stone</span></td>
+      <td></td><td><span class="dot sel" data-key="Dark Stone|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td><span class="dot sel" data-key="Dark Stone|Ballpoint">●</span></td>
+    </tr>
+    <tr class="tone-light" style="--c:#C0C0C0;">
+      <td><span class="ink-light" style="color:#C0C0C0;">Silver</span></td>
+      <td><span class="dot sel" data-key="Silver|0.35">●</span></td><td><span class="dot sel" data-key="Silver|0.5">●</span></td><td><span class="dot sel" data-key="Silver|0.7">●</span></td>
+      <td class="disc-col"><span class="dot sel dim" data-key="Silver|0.9">○</span></td>
+      <td class="disc-col"><span class="dot sel dim" data-key="Silver|1.0">○</span></td>
+      <td class="disc-col"><span class="dot sel" data-key="Silver|2.0">●</span></td><td><span class="dot sel" data-key="Silver|3-in-1">●</span></td><td><span class="dot sel" data-key="Silver|Ballpoint">●</span></td>
+    </tr>
+    <tr class="tone-light" style="--c:#F9F9F9;">
+      <td><span class="ink-light" style="color:#F9F9F9;">Pearl White</span></td>
+      <td></td><td><span class="dot sel" data-key="Pearl White|0.5">●</span></td><td></td><td></td><td></td><td></td>
+      <td><span class="dot sel" data-key="Pearl White|3-in-1">●</span></td><td><span class="dot sel" data-key="Pearl White|Ballpoint">●</span></td>
+    </tr>
+    <tr class="tone-dark" style="--c:#222222;">
+      <td><span class="ink-dark" style="color:#222222;">Itoya Limited Black</span></td>
+      <td></td><td><span class="dot sel" data-key="Itoya Limited Black|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td></td>
+    </tr>
+    <tr class="tone-light" style="--c:#E6E6E6;">
+      <td><span class="ink-light" style="color:#E6E6E6;">Itoya Limited White</span></td>
+      <td></td><td><span class="dot sel" data-key="Itoya Limited White|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td></td>
+    </tr>
+    <tr class="tone-light" style="--c:#d0d0d0;">
+      <td><span class="ink-light" style="color:#d0d0d0;">Supreme edition</span></td>
+      <td></td><td></td><td></td><td></td><td></td><td></td>
+      <td><span class="dot sel" data-key="Supreme edition|3-in-1">●</span></td><td></td>
+    </tr>
+  </tbody>
+</table>
+
+<script>
+(function(){
+  const KEY = "rotring600Owned";
+
+  const dots = Array.from(document.querySelectorAll(".dot.sel"));
+  let owned = {};
+  try { owned = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch(e) { owned = {}; }
+
+  function ensureCheck(dot){
+    // remove any existing check first
+    const prev = dot.querySelector(".check");
+    if (prev) prev.remove();
+    // create crisp SVG check
+    const wrap = document.createElement("span");
+    wrap.className = "check";
+    wrap.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg>';
+    dot.appendChild(wrap);
+  }
+
+  function removeCheck(dot){
+    const prev = dot.querySelector(".check");
+    if (prev) prev.remove();
+  }
+
+  function applyState(dot){
+    const k = dot.dataset.key;
+    const on = !!owned[k];
+    dot.classList.toggle("owned", on);
+    dot.setAttribute("aria-pressed", on ? "true" : "false");
+    dot.title = (on ? "Owned — click to unmark" : "Click to mark as owned");
+    // Vintage ring flips ○↔●
+    if (dot.classList.contains("dim")) dot.textContent = on ? "●" : "○";
+    // Manage crisp SVG check
+    if (on) ensureCheck(dot); else removeCheck(dot);
+  }
+
+  dots.forEach(dot => {
+    dot.setAttribute("role","button");
+    dot.setAttribute("tabindex","0");
+    applyState(dot);
+
+    function toggle(){
+      const k = dot.dataset.key;
+      const turnOn = !dot.classList.contains("owned");
+      if (dot.classList.contains("dim")) dot.textContent = turnOn ? "●" : "○";
+      if (turnOn) { owned[k] = true; ensureCheck(dot); }
+      else { delete owned[k]; removeCheck(dot); }
+      localStorage.setItem(KEY, JSON.stringify(owned));
+      applyState(dot);
+    }
+
+    dot.addEventListener("click", toggle);
+    dot.addEventListener("keydown", (e)=>{
+      if (e.key === " " || e.key === "Enter"){ e.preventDefault(); toggle(); }
+    });
+  });
+
+  // Reset
+  const btn = document.getElementById("resetOwned");
+  if (btn){
+    btn.addEventListener("click", function(){
+      if (!confirm("Reset all owned marks? This can’t be undone.")) return;
+      localStorage.removeItem(KEY);
+      location.reload();
+    });
+  }
+})();
+</script>
+
+</body>
+</html>
