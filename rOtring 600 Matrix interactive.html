@@ -2,351 +2,1553 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>rOtring 600 — Availability Matrix (Crisp SVG Check + Adaptive Tint)</title>
+<title>rOtring 600 — Availability Matrix (JSON-driven)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
-  :root{
-    --bg:#111; --ink:#ddd; --muted:#888; --line:#333; --head:#222; --accent:#ffcc66;
-    --disc-bg:#161616;
-  }
-  body{
-    background:var(--bg); color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;
-    padding:40px 24px;
-  }
-  h1{ text-align:center; color:var(--accent); margin:0 0 18px; font-size:1.6rem; }
-  .caption-top{ text-align:center; color:var(--muted); margin-bottom:10px; font-size:.95rem; }
+	/* ------------------------------------------------------------------
+	   THEME / BASE
+	------------------------------------------------------------------- */
+	:root{
+	  --bg:#111; --ink:#ddd; --muted:#9aa; --line:#2a2a2a; --head:#1a1a1a; --accent:#ffcc66;
+	  /* Gen numeral tuning (bullet size unchanged; actual vertical align via dy in SVG) */
+	  --gen-num-size: 16px;
+	  --gen-num-weight: 300;
+	}
 
-  table{ border-collapse:collapse; width:100%; max-width:1200px; margin:0 auto; }
-  th,td{ border:1px solid var(--line); padding:7px 10px; text-align:center; }
-  th{ background:var(--head); color:var(--accent); position:sticky; top:0; }
-  td:first-child{ text-align:left; font-weight:600; }
+	*{ box-sizing:border-box }
 
-  caption{
-    caption-side: bottom;
-    text-align:left;
-    border:1px solid var(--line);
-    border-top:none;
-    padding:10px 12px;
-    color:var(--muted);
-    font-size:.92rem; line-height:1.35;
-  }
+	body{
+	  background:var(--bg); color:var(--ink);
+	  font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;
+	  padding:40px 16px 60px;
+	}
 
-  .disc-col{ background:var(--disc-bg); }
-  .sep-col{ box-shadow: inset 2px 0 0 rgba(255,255,255,.03); }
+	h1{ text-align:center; color:var(--accent); margin:0 0 8px; font-size:1.6rem; }
+	.caption-top{ text-align:center; color:var(--muted); margin-bottom:14px; font-size:.95rem; }
 
-  /* Each row sets --c to the finish color; dots inherit it */
-  .dot{
-    color:var(--c);
-    font-weight:700;
-    position:relative;
-    display:inline-block;
-    line-height:1;
-    user-select:none;
-  }
-  .sel{ cursor:pointer; }
-  .sel:focus-visible{ outline:1px dashed #888; outline-offset:2px; border-radius:2px; }
+	/* ------------------------------------------------------------------
+	   TOOLBAR
+	------------------------------------------------------------------- */
+	.toolbar{
+	  max-width:1200px; margin:0 auto 12px;
+	  display:flex; flex-wrap:wrap; gap:10px 12px; align-items:center; justify-content:center;
+	}
+	.toolbar label{ color:#c9c9c9; font-size:.92rem; }
+	.toolbar select{
+	  background:#1a1a1a; color:#ddd; border:1px solid #333; border-radius:8px; padding:6px 8px;
+	  min-width:160px;
+	}
+	.toolbar button{
+	  background:#222; color:#ddd; border:1px solid #333; border-radius:8px; padding:6px 10px; cursor:pointer;
+	}
+	.toolbar .spacer{ flex:1 1 24px }
+	.menubox{ position:relative; display:inline-block; }
+	.menubox > button{ min-width:180px; text-align:left; }
 
-  /* Base legibility by tone */
-  .tone-dark .dot{ -webkit-text-stroke:0.20px rgba(255,255,255,0.18); text-shadow:0 0 0.25px rgba(255,255,255,0.20); }
-  .tone-light .dot{ -webkit-text-stroke:0.24px rgba(0,0,0,0.22); text-shadow:0 0 0.25px rgba(0,0,0,0.24); }
-  .very-dark .dot{ -webkit-text-stroke:0.42px rgba(255,255,255,0.36); text-shadow:0 0 0.5px rgba(255,255,255,0.34); }
-  .nearly-dark .dot{ -webkit-text-stroke:0.32px rgba(255,255,255,0.28); text-shadow:0 0 0.45px rgba(255,255,255,0.30); }
+	/* Popup menu */
+	.menu{
+	  position:absolute; z-index:10000; top:calc(100% + 6px); left:0;
+	  min-width:280px; max-height:340px; overflow:auto;
+	  background:#1a1a1a; color:#ddd; border:1px solid #333; border-radius:10px;
+	  box-shadow:0 10px 30px rgba(0,0,0,.45); padding:8px; display:none;
+	}
+	.menu.show{ display:block; }
+	.menu-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
+	.menu .close-x{ background:transparent; border:0; color:#aaa; cursor:pointer; font-size:16px; padding:2px 6px; }
+	.menu-list{ display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; padding:6px 2px 8px; }
+	.menu-list label{ display:flex; align-items:center; gap:8px; font-size:.92rem; color:#ddd; }
+	.menu-list input[type="checkbox"]{ accent-color:#ffcc66; }
+	.menu-actions{ display:flex; align-items:center; gap:8px; margin-top:6px; }
+	.menu .primary{ border-color:#555; }
 
-  /* Vintage rings start as ○ with a mild presence */
-  .dim{ opacity:.85; }
+	/* ------------------------------------------------------------------
+	   TABLE
+	------------------------------------------------------------------- */
+	table{ border-collapse:collapse; width:100%; max-width:1200px; margin:0 auto; }
+	th,td{ border:1px solid var(--line); padding:7px 10px; text-align:center; }
+	th{ background:var(--head); color:var(--ink); position:sticky; top:0; }
+	thead .hgroup th{ color:var(--accent); text-align:center; }
+	thead .hsub th{ font-weight:600; }
+	td:first-child, th:first-child{ text-align:left; }
 
-  /* Owned: neon on the dot only (kept from prior good state) */
-  .dot.owned{
-    opacity:1;
-    -webkit-text-stroke:0.9px rgba(255,255,255,0.80);
-    text-shadow:
-      0 0 1.1px rgba(255,255,255,0.78),
-      0 0 3px rgba(255,255,255,0.52),
-      0 0 10px currentColor,
-      0 0 16px currentColor;
-  }
-  .tone-light .dot.owned{
-    -webkit-text-stroke:0.9px rgba(0,0,0,0.76);
-    text-shadow:
-      0 0 1.1px rgba(0,0,0,0.74),
-      0 0 3px rgba(0,0,0,0.45),
-      0 0 10px currentColor,
-      0 0 16px currentColor;
-  }
-  @supports (color: color-mix(in srgb, white 50%, black 50%)) {
-    .tone-dark .dot.owned{
-      -webkit-text-stroke: 0.95px rgba(255,255,255,0.84);
-      text-shadow:
-        0 0 1.1px rgba(255,255,255,0.82),
-        0 0 2.6px rgba(255,255,255,0.50),
-        0 0 6px  color-mix(in srgb, currentColor 65%, white 35%),
-        0 0 12px color-mix(in srgb, currentColor 55%, white 45%),
-        0 0 18px color-mix(in srgb, currentColor 45%, white 55%);
-    }
-    .tone-dark.nearly-dark .dot.owned{
-      -webkit-text-stroke: 0.9px rgba(255,255,255,0.80);
-      text-shadow:
-        0 0 1px   rgba(255,255,255,0.78),
-        0 0 2.4px rgba(255,255,255,0.46),
-        0 0 5px  color-mix(in srgb, currentColor 62%, white 38%),
-        0 0 10px color-mix(in srgb, currentColor 52%, white 48%),
-        0 0 14px color-mix(in srgb, currentColor 42%, white 58%);
-    }
-    .tone-dark.very-dark .dot.owned{
-      -webkit-text-stroke: 1.05px rgba(255,255,255,0.88);
-      text-shadow:
-        0 0 1.3px rgba(255,255,255,0.86),
-        0 0 3.2px rgba(255,255,255,0.52),
-        0 0 7px  color-mix(in srgb, currentColor 70%, white 30%),
-        0 0 13px color-mix(in srgb, currentColor 58%, white 42%),
-        0 0 20px color-mix(in srgb, currentColor 46%, white 54%);
-    }
-  }
-  @supports not (color: color-mix(in srgb, white 50%, black 50%)) {
-    .tone-dark .dot.owned{
-      -webkit-text-stroke:0.95px rgba(255,255,255,0.84);
-      text-shadow:
-        0 0 1.1px rgba(255,255,255,0.82),
-        0 0 2.6px rgba(255,255,255,0.50),
-        0 0 6px  currentColor,
-        0 0 12px currentColor,
-        0 0 18px currentColor;
-    }
-    .tone-dark.nearly-dark .dot.owned{
-      -webkit-text-stroke:0.9px rgba(255,255,255,0.80);
-      text-shadow:
-        0 0 1px   rgba(255,255,255,0.78),
-        0 0 2.4px rgba(255,255,255,0.46),
-        0 0 5px  currentColor,
-        0 0 10px currentColor,
-        0 0 14px currentColor;
-    }
-    .tone-dark.very-dark .dot.owned{
-      -webkit-text-stroke:1.05px rgba(255,255,255,0.88);
-      text-shadow:
-        0 0 1.3px rgba(255,255,255,0.86),
-        0 0 3.2px rgba(255,255,255,0.52),
-        0 0 7px  currentColor,
-        0 0 13px currentColor,
-        0 0 20px currentColor;
-    }
-  }
+	caption{
+	  caption-side: bottom; text-align:left; border:1px solid var(--line); border-top:none;
+	  padding:10px 12px; color:var(--muted); font-size:.92rem; line-height:1.35; max-width:1200px; margin:10px auto 0;
+	}
 
-  /* Adaptive check tint (SVG uses --check) */
-  @supports (color: color-mix(in srgb, white 50%, black 50%)) {
-    .tone-light { --check: color-mix(in srgb, var(--c) 70%, black 30%); }
-    .tone-dark  { --check: color-mix(in srgb, var(--c) 60%, white 40%); }
-    .tone-dark.nearly-dark { --check: color-mix(in srgb, var(--c) 65%, white 35%); }
-    .tone-dark.very-dark  { --check: color-mix(in srgb, var(--c) 45%, white 55%); }
-  }
-  @supports not (color: color-mix(in srgb, white 50%, black 50%)) {
-    .tone-light { --check:#222; }
-    .tone-dark  { --check:#f4f4f4; }
-  }
+	/* Only 2.0 gets a subtle vertical separator */
+	.sep-col{ box-shadow: inset 2px 0 0 rgba(255,255,255,.06); }
 
-  /* SVG check inside the dot */
-  .check{
-    position:absolute; left:50%; top:50%;
-    transform:translate(-50%,-50%);
-    width:0.82em; height:0.82em; /* scales with font-size of dot */
-    display:block; pointer-events:none;
-  }
-  .check svg{ width:100%; height:100%; display:block; }
-  .check path{
-    fill:none; stroke:var(--check); stroke-width:2.2;
-    stroke-linecap:round; stroke-linejoin:round;
-    vector-effect:non-scaling-stroke; shape-rendering:geometricPrecision;
-  }
+	/* Improve contrast for the first column label when rows are very dark/light */
+	.tone-dark  td:first-child,
+	.nearly-dark td:first-child,
+	.very-dark  td:first-child {
+	  -webkit-text-stroke: 0.25px rgba(255,255,255,.35);
+	  text-shadow: 0 0 .45px rgba(255,255,255,.32);
+	}
+	.tone-light td:first-child {
+	  -webkit-text-stroke: 0.25px rgba(0,0,0,.30);
+	  text-shadow: 0 0 .45px rgba(0,0,0,.28);
+	}
 
-  /* Color name legibility */
-  .ink-dark{ -webkit-text-stroke:0.3px rgba(255,255,255,.18); text-shadow:0 0 .3px rgba(255,255,255,.22); }
-  .ink-light{ -webkit-text-stroke:0.3px rgba(0,0,0,.18); text-shadow:0 0 .3px rgba(0,0,0,.22); }
-  .ink-black{ color:#222; -webkit-text-stroke:0.14px rgba(255,255,255,0.18); text-shadow:0 0 0.18px rgba(255,255,255,0.18); }
+	/* ------------------------------------------------------------------
+	   DOTS (BULLETS)
+	------------------------------------------------------------------- */
+	.dot{
+	  color:var(--c);
+	  font-weight:700;
+	  position:relative;
+	  display:inline-block;
+	  line-height:1;
+	  user-select:none;
+	}
+	.sel{ cursor:pointer; }
+	.sel:focus-visible{ outline:1px dashed #888; outline-offset:2px; border-radius:2px; }
+	.dot.mini{ font-size:0.95rem; line-height:1; min-width:1em; text-align:center; }
+
+	/* Tone variables (row-level or dot-level) */
+	.tone-light, .dot.tone-light { --stroke: rgba(0,0,0,0.76); }
+	.tone-dark,  .dot.tone-dark,
+	.nearly-dark, .dot.nearly-dark,
+	.very-dark,  .dot.very-dark { --stroke: rgba(255,255,255,0.88); }
+
+	/* Check tint from tone */
+	@supports (color: color-mix(in srgb, white 50%, black 50%)) {
+	  .tone-light, .dot.tone-light { --check: color-mix(in srgb, var(--c) 70%, black 30%); }
+	  .tone-dark,  .dot.tone-dark  { --check: color-mix(in srgb, var(--c) 60%, white 40%); }
+	  .tone-dark.nearly-dark, .dot.tone-dark.dot.nearly-dark { --check: color-mix(in srgb, var(--c) 65%, white 35%); }
+	  .tone-dark.very-dark,   .dot.tone-dark.dot.very-dark   { --check: color-mix(in srgb, var(--c) 45%, white 55%); }
+	}
+	@supports not (color: color-mix(in srgb, white 50%, black 50%)) {
+	  .tone-light, .dot.tone-light { --check:#222; }
+	  .tone-dark,  .dot.tone-dark  { --check:#f4f4f4; }
+	}
+
+	/* Thin baseline legibility stroke on non-owned dots */
+	.tone-dark .dot:not(.owned){ -webkit-text-stroke:0.20px rgba(255,255,255,0.18); text-shadow:0 0 0.25px rgba(255,255,255,0.20); }
+	.tone-light .dot:not(.owned){ -webkit-text-stroke:0.24px rgba(0,0,0,0.22);   text-shadow:0 0 0.25px rgba(0,0,0,0.24); }
+	.very-dark .dot:not(.owned){  -webkit-text-stroke:0.42px rgba(255,255,255,0.36); text-shadow:0 0 0.5px rgba(255,255,255,0.34); }
+	.nearly-dark .dot:not(.owned){-webkit-text-stroke:0.32px rgba(255,255,255,0.28); text-shadow:0 0 0.45px rgba(255,255,255,0.30); }
+
+	/* Owned: match Mode A glow across modes */
+	.dot.owned{
+	  -webkit-text-stroke-width:0.9px !important;
+	  -webkit-text-stroke-color: var(--stroke, rgba(255,255,255,0.80)) !important;
+	  text-shadow:
+		0 0 1.1px rgba(255,255,255,0.78),
+		0 0 3px rgba(255,255,255,0.52),
+		0 0 10px currentColor,
+		0 0 16px currentColor;
+	}
+	.dot.owned::after{
+	  content:"";
+	  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+	  width:1.02em; height:1.02em; border-radius:50%; pointer-events:none;
+	  box-shadow:
+		0 0 6px  color-mix(in srgb, currentColor 45%, white 55%),
+		0 0 12px color-mix(in srgb, currentColor 30%, white 70%);
+	  opacity:.8;
+	}
+	.tone-dark .dot.owned::after,
+	.nearly-dark .dot.owned::after{
+	  box-shadow:
+		0 0 7px  color-mix(in srgb, currentColor 40%, white 60%),
+		0 0 14px color-mix(in srgb, currentColor 28%, white 72%);
+	}
+	.very-dark .dot.owned, .dot.very-dark.owned{ -webkit-text-stroke-width:1.05px !important; }
+	.very-dark .dot.owned::after{
+	  width:1.06em; height:1.06em;
+	  box-shadow:
+		0 0 8px  color-mix(in srgb, currentColor 38%, white 62%),
+		0 0 16px color-mix(in srgb, currentColor 26%, white 74%);
+	}
+
+	/* Checkmark inside dot */
+	.check{
+	  position:absolute; left:50%; top:50%;
+	  transform:translate(-50%,-50%);
+	  width:0.82em; height:0.82em; display:block; pointer-events:none;
+	}
+	.check svg{ width:100%; height:100%; display:block; }
+	.check path{
+	  fill:none; stroke:var(--check, #fff);
+	  stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round;
+	  vector-effect:non-scaling-stroke; shape-rendering:geometricPrecision;
+	}
+	.dot.owned .check path{ stroke-width:2.3; }
+
+	/* ------------------------------------------------------------------
+	   GENERATION BULLETS (SVG)
+	------------------------------------------------------------------- */
+	.dot.gen-num{ line-height:0; }
+	.dot.gen-num svg{ width:1.15em; height:1.15em; display:block; }
+
+	/* Numeral fill by tone; outline handled in SVG via dy + optional CSS only if needed */
+	.tone-light .dot.gen-num svg .num, .dot.tone-light.gen-num svg .num { fill:#000; }
+	.tone-dark  .dot.gen-num svg .num,
+	.nearly-dark .dot.gen-num svg .num,
+	.very-dark  .dot.gen-num svg .num,
+	.dot.tone-dark.gen-num svg .num,
+	.dot.nearly-dark.gen-num svg .num,
+	.dot.very-dark.gen-num svg .num { fill:#fff; }
+
+	/* OPTIONAL: slight typographic polish (doesn't change vertical align) */
+	.dot.gen-num svg .num{
+	  font-size: var(--gen-num-size);
+	  font-weight: var(--gen-num-weight);
+	  text-rendering: geometricPrecision;
+	  font-variant-numeric: lining-nums tabular-nums;
+	  letter-spacing: 0.1px;
+	}
+
+	/* Circle ring logic
+	   - Default: no ring
+	   - Dark tones (unowned): subtle light ring for legibility
+	   - Owned: strong tone-driven ring (you liked 2.8)
+	*/
+	.dot.gen-num svg circle{
+	  stroke: transparent;
+	  stroke-width: 0;
+	  paint-order: normal;
+	  vector-effect: non-scaling-stroke;
+	  shape-rendering: geometricPrecision;
+	}
+	.tone-dark .dot.gen-num:not(.owned) svg circle,
+	.nearly-dark .dot.gen-num:not(.owned) svg circle,
+	.very-dark .dot.gen-num:not(.owned) svg circle,
+	.dot.tone-dark.gen-num:not(.owned) svg circle,
+	.dot.nearly-dark.gen-num:not(.owned) svg circle,
+	.dot.very-dark.gen-num:not(.owned) svg circle{
+	  stroke: rgba(255,255,255,0.26);
+	  stroke-width: 1.1;
+	  paint-order: stroke fill;
+	}
+	.very-dark .dot.gen-num:not(.owned) svg circle,
+	.dot.very-dark.gen-num:not(.owned) svg circle{
+	  stroke: rgba(255,255,255,0.34);
+	  stroke-width: 1.25;
+	}
+	.tone-light, .dot.tone-light     { --stroke-strong: rgba(0,0,0,0.92); }
+	.tone-dark,  .dot.tone-dark,
+	.nearly-dark, .dot.nearly-dark,
+	.very-dark,  .dot.very-dark      { --stroke-strong: rgba(255,255,255,0.92); }
+	.dot.gen-num.owned svg circle{
+	  stroke: var(--stroke-strong);
+	  stroke-width: 2.8;
+	  paint-order: stroke fill;
+	}
+	.very-dark .dot.gen-num.owned svg circle,
+	.dot.very-dark.gen-num.owned svg circle{ stroke-width: 3.1; }
+
+	/* Owned gen bullets get same halo feel (matches text bullets) */
+	.dot.gen-num.owned{ position: relative; }
+	.dot.gen-num.owned::after{
+	  content:"";
+	  position:absolute; left:50%; top:50%;
+	  transform:translate(-50%,-50%);
+	  width:1.02em; height:1.02em; border-radius:50%;
+	  pointer-events:none;
+	  box-shadow:
+		0 0 6px  color-mix(in srgb, currentColor 45%, white 55%),
+		0 0 12px color-mix(in srgb, currentColor 30%, white 70%);
+	  opacity:.8;
+	}
+	.tone-dark .dot.gen-num.owned::after,
+	.nearly-dark .dot.gen-num.owned::after{
+	  box-shadow:
+		0 0 7px  color-mix(in srgb, currentColor 40%, white 60%),
+		0 0 14px color-mix(in srgb, currentColor 28%, white 72%);
+	}
+	.very-dark .dot.gen-num.owned::after{
+	  width:1.06em; height:1.06em;
+	  box-shadow:
+		0 0 8px  color-mix(in srgb, currentColor 38%, white 62%),
+		0 0 16px color-mix(in srgb, currentColor 26%, white 74%);
+	}
+
+	/* ------------------------------------------------------------------
+	   GRID WRAPPER (multi-bullet cells)
+	------------------------------------------------------------------- */
+	.cell-grid{
+	  display:grid; gap:6px 8px; justify-content:center; align-items:center; grid-auto-flow:row;
+	}
+
+	/* ------------------------------------------------------------------
+	   POPOVER
+	------------------------------------------------------------------- */
+	.pop{
+	  position:absolute; z-index:9999; min-width:260px; max-width:360px;
+	  background:#1a1a1a; color:#ddd; border:1px solid #333; border-radius:10px;
+	  box-shadow:0 10px 30px rgba(0,0,0,.45); padding:10px; display:none;
+	}
+	.pop.show{ display:block; }
+	.pop h3{ margin:0 0 6px; font-size:.98rem; color:#ffc; }
+	.pop .meta{ font-size:.85rem; color:#9aa; margin-bottom:8px; line-height:1.35; }
+	.pop .meta .badge{ display:inline-block; padding:1px 6px; border:1px solid #444; border-radius:999px; margin-right:6px; }
+	.pop .gen-dots{ display:flex; flex-wrap:wrap; gap:10px 14px; align-items:flex-start; border:1px solid #2a2a2a; border-radius:8px; padding:8px; margin-bottom:8px; }
+	.pop .gen-item{ display:flex; align-items:center; gap:10px; min-width:220px; }
+	.pop .gen-dots .dot{ font-size:1.15rem; cursor:pointer; }
+	.pop .gen-dots .dot:focus-visible{ outline:1px dashed #888; outline-offset:2px; border-radius:2px; }
+	.pop .gen-text{ display:flex; flex-direction:column; line-height:1.2; }
+	.pop .gen-name{ font-size:.9rem; color:#ddd; }
+	.pop .gen-model{ font-size:.78rem; color:#8aa; }
+	.pop .gen-features{ font-size:.75rem; color:#9bb; margin-top:2px; }
+	.pop .actions{ display:flex; justify-content:flex-end; gap:8px; }
+	.pop button{ background:#222; color:#ddd; border:1px solid #333; padding:5px 10px; border-radius:8px; cursor:pointer; }
+	.pop .primary{ border-color:#555; }
+	.pop .hint{ font-size:.8rem; color:#8aa; margin-top:4px; }
+	.pop .close-x{ position:absolute; right:8px; top:6px; background:transparent; border:0; color:#aaa; cursor:pointer; font-size:16px; }
+	.pop .dot{ --c: currentColor; }
+	/* Always allow checks inside the popover and suppress inside table for Mode C */
+	.pop .check, body.no-check-mode .pop .check{ display:block !important; }
+	body.no-check-mode table .check{ display:none !important; }
+
+	/* ------------------------------------------------------------------
+	   RESPONSIVE
+	------------------------------------------------------------------- */
+	@media (max-width: 720px){
+	  .toolbar{ justify-content:flex-start; }
+	  .toolbar select{ min-width:140px; }
+	}
+
+	/* =======================
+	   MODE C — Generation bullets (SVG numerals)
+	   ======================= */
+
+	/* Size of the SVG bullet (doesn't change the table layout) */
+	.dot.gen-num{ line-height:0; }
+	.dot.gen-num svg{ width:1.15em; height:1.15em; display:block; } /* TWEAK: bullet graphic size */
+
+	/* Numeral fill based on tone (white on dark, black on light) */
+	.tone-light .dot.gen-num svg .num,
+	.dot.tone-light.gen-num svg .num { fill:#000; }
+	.tone-dark .dot.gen-num svg .num,
+	.nearly-dark .dot.gen-num svg .num,
+	.very-dark .dot.gen-num svg .num,
+	.dot.tone-dark.gen-num svg .num,
+	.dot.nearly-dark.gen-num svg .num,
+	.dot.very-dark.gen-num svg .num { fill:#fff; }
+
+	/* ---- Ring logic (circle stroke) ---- */
+
+	/* Default: no ring */
+	.dot.gen-num svg circle{
+	  stroke: transparent;
+	  stroke-width: 0;
+	  paint-order: normal;
+	}
+
+	/* Unowned on dark tones: subtle legibility ring */
+	.tone-dark .dot.gen-num:not(.owned) svg circle,
+	.nearly-dark .dot.gen-num:not(.owned) svg circle,
+	.very-dark .dot.gen-num:not(.owned) svg circle,
+	.dot.tone-dark.gen-num:not(.owned) svg circle,
+	.dot.nearly-dark.gen-num:not(.owned) svg circle,
+	.dot.very-dark.gen-num:not(.owned) svg circle{
+	  stroke: rgba(255,255,255,0.26);       /* TWEAK: legibility ring opacity */
+	  stroke-width: 1.1;                    /* TWEAK: legibility ring thickness */
+	  paint-order: stroke fill;
+	  vector-effect: non-scaling-stroke;
+	}
+
+	/* Tiny bump for very dark */
+	.very-dark .dot.gen-num:not(.owned) svg circle,
+	.dot.very-dark.gen-num:not(.owned) svg circle{
+	  stroke: rgba(255,255,255,0.34);       /* TWEAK */
+	  stroke-width: 1.25;                   /* TWEAK */
+	}
+
+	/* Owned: strong ring like Mode A */
+	.tone-light, .dot.tone-light     { --stroke-strong: rgba(0,0,0,0.92); }
+	.tone-dark,  .dot.tone-dark,
+	.nearly-dark, .dot.nearly-dark,
+	.very-dark,  .dot.very-dark      { --stroke-strong: rgba(255,255,255,0.92); }
+
+	.dot.gen-num.owned svg circle{
+	  stroke: var(--stroke-strong);
+	  stroke-width: 1.8;                    /* TWEAK: main owned ring thickness */
+	  paint-order: stroke fill;
+	  vector-effect: non-scaling-stroke;
+	}
+
+	/* Slight extra heft for very dark owned */
+	.very-dark .dot.gen-num.owned svg circle,
+	.dot.very-dark.gen-num.owned svg circle{
+	  stroke-width: 3.1;                    /* TWEAK */
+	}
+
+	/* ---- Owned glow (Mode A parity) ---- */
+
+	/* Base glow for ALL tones (this is your “strong” look) */
+	.dot.gen-num.owned{ position:relative; }
+	.dot.gen-num.owned svg{
+	  filter:
+		drop-shadow(0 0 1.2px rgba(255,255,255,0.85)) /* white core bloom */   /* TWEAK radius/alpha */
+		drop-shadow(0 0 3px   currentColor)            /* color bloom 1 */      /* TWEAK radius */
+		drop-shadow(0 0 8px   currentColor)            /* color bloom 2 */      /* TWEAK radius */
+		drop-shadow(0 0 14px  currentColor);           /* color bloom 3 */      /* TWEAK radius */
+	}
+
+	/* Halo disk — prevents N/S/E/W clipping and adds soft ambient glow */
+	.dot.gen-num.owned::after{
+	  content:"";
+	  position:absolute; left:50%; top:50%;
+	  transform:translate(-50%,-50%);
+	  width:1.06em; height:1.06em;            /* TWEAK: enlarge to avoid clipping */
+	  border-radius:50%;
+	  pointer-events:none;
+	  box-shadow:
+		0 0 8px  color-mix(in srgb, currentColor 38%, white 62%),  /* TWEAK radius/mix */
+		0 0 16px color-mix(in srgb, currentColor 26%, white 74%);  /* TWEAK radius/mix */
+	  opacity:.80;                             /* TWEAK: overall halo strength */
+	}
+
+	/* ---- Light-tone dial-back (softer on bright bullets) ---- */
+	/* Place these right after the base glow rules above. */
+
+	.tone-light .dot.gen-num.owned svg,
+	.dot.tone-light.gen-num.owned svg{
+	  filter:
+		drop-shadow(0 0 0.9px rgba(255,255,255,0.70)) /* softer white core */   /* TWEAK */
+		drop-shadow(0 0 2px   rgba(255,255,255,0.38)) /* reduce white fringe */ /* TWEAK */
+		drop-shadow(0 0 6px   currentColor)           /* reduce color bloom */  /* TWEAK */
+		drop-shadow(0 0 10px  currentColor);                                     /* TWEAK */
+	}
+
+	.tone-light .dot.gen-num.owned::after,
+	.dot.tone-light.gen-num.owned::after{
+	  width:1.04em; height:1.04em;            /* TWEAK: smaller halo disk on light tones */
+	  box-shadow:
+		0 0 4px  color-mix(in srgb, currentColor 35%, white 65%),  /* TWEAK */
+		0 0 8px  color-mix(in srgb, currentColor 20%, white 80%);  /* TWEAK */
+	  opacity:.60;                             /* TWEAK: lighter overall halo on light tones */
+	}
+
+	/* =======================
+	   MODE D — Color bullets (text ●), dark-tone legibility
+	   ======================= */
+
+	/* Unowned color bullets on dark tones: add a light outline.
+	   - Excludes generation-number bullets (.gen-num)
+	   - Excludes owned (they already have a stronger style) */
+	.tone-dark  .dot:not(.gen-num):not(.owned),
+	.nearly-dark .dot:not(.gen-num):not(.owned),
+	.very-dark  .dot:not(.gen-num):not(.owned),
+	.dot.tone-dark:not(.gen-num):not(.owned),
+	.dot.nearly-dark:not(.gen-num):not(.owned),
+	.dot.very-dark:not(.gen-num):not(.owned){
+	  -webkit-text-stroke: 0.36px rgba(255,255,255,0.75); /* TWEAK thickness/alpha */
+	  text-shadow:
+		0 0 0.45px rgba(255,255,255,0.40);                /* TWEAK subtle lift */
+	}
+
+	/* Very dark specifically: a hair more stroke so it doesn’t crush */
+	.very-dark  .dot:not(.gen-num):not(.owned),
+	.dot.very-dark:not(.gen-num):not(.owned){
+	  -webkit-text-stroke-width: 0.46px;                  /* TWEAK */
+	  text-shadow:
+		0 0 0.55px rgba(255,255,255,0.42);                /* TWEAK */
+	}
+
+	/* Light tones: keep edges soft (no hard outline). You can adjust if needed. */
+	.tone-light  .dot:not(.gen-num):not(.owned),
+	.dot.tone-light:not(.gen-num):not(.owned){
+	  -webkit-text-stroke: 0.22px rgba(0,0,0,0.28);       /* TWEAK or set to 0 */
+	  text-shadow: 0 0 0.35px rgba(0,0,0,0.26);           /* TWEAK */
+	}
+
 </style>
 </head>
 <body>
 
 <h1>rOtring 600 — Availability by Color and Format</h1>
-<div class="caption-top">Click a dot to mark it as owned. Bullets are color-matched; darker columns are discontinued sizes.</div>
+<div class="caption-top">
+  Click a dot to mark it as owned. Option/Alt+Click (or Option/Alt+Enter) opens the popover. On mobile, long-press a dot.
+</div>
 
-<!-- Reset button -->
-<div style="max-width:1200px;margin:0 auto 16px;display:flex;justify-content:flex-end;">
-  <button id="resetOwned"
-    style="background:#222;color:#ddd;border:1px solid #333;padding:6px 10px;border-radius:6px;cursor:pointer;">
-    Reset owned
-  </button>
+<!-- Toolbar -->
+<div class="toolbar" role="region" aria-label="Matrix controls">
+  <label>Generation:</label>
+  <div class="menubox">
+    <button id="genMenuBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="genMenuPanel">All</button>
+    <div id="genMenuPanel" class="menu" role="dialog" aria-modal="false" aria-labelledby="genMenuTitle">
+      <div class="menu-head">
+        <strong id="genMenuTitle">Filter by generation</strong>
+        <button class="close-x" type="button" aria-label="Close">×</button>
+      </div>
+      <div id="genMenuList" class="menu-list"></div>
+      <div class="menu-actions">
+        <button id="genAll"   type="button">All</button>
+        <div class="spacer"></div>
+        <button id="genApply" type="button" class="primary">Apply</button>
+        <button id="genCancel" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <label for="colorFilter">Color:</label>
+  <select id="colorFilter">
+    <option value="">All</option>
+  </select>
+  <button id="colorClear" type="button">Clear</button>
+
+  <label for="groupMode">Grouping:</label>
+  <select id="groupMode">
+    <option value="default" selected>Standard</option>
+    <option value="rowsColors">Rows: Colors (gen bullets)</option>
+    <option value="rowsGens">Rows: Generations (color bullets)</option>
+  </select>
+
+  <div class="spacer"></div>
+  <button id="resetOwned" type="button" title="Clear all owned and reload">Reset owned</button>
 </div>
 
 <table aria-describedby="notes">
-  <caption id="notes">
-    <strong>Notes:</strong><br>
-    * Shaded columns indicate legacy/discontinued size classes for the 600 mechanical pencil family; “2.0 mm” is the 600 Lead Holder variant.<br>
-    Bullets — <span>●</span> confirmed (current or discontinued), <span class="dim">○</span> early-run/vintage documented but not in current catalogs.
-    <div style="margin-top:10px; font-size:.85rem; color:#9aa;">
-      Rotring 600 Series Color Matrix — Revision 2025-10-14. Sources consulted: Rotring official listings, JetPens, Knockology, Dave’s Mechanical Pencils, JDirectItems Auction archives.
-    </div>
-  </caption>
-
   <thead>
-    <tr>
-      <th>Color</th>
-      <th class="disc-col" title="Legacy/discontinued mechanical size">0.35 mm*</th>
-      <th>0.5 mm</th>
-      <th>0.7 mm</th>
-      <th class="disc-col" title="Legacy/discontinued mechanical size">0.9 mm*</th>
-      <th class="disc-col" title="Legacy/discontinued mechanical size">1.0 mm*</th>
-      <th class="disc-col sep-col" title="Lead holder variant in the 600 family">2.0 mm*</th>
-      <th>3-in-1</th>
-      <th>Ballpoint</th>
+    <tr class="hgroup">
+      <th rowspan="2" scope="col">Color / Generation</th>
+      <th colspan="6" scope="colgroup" aria-label="Pencil and Lead Holder">Pencil / Lead Holder</th>
+      <th rowspan="2" scope="col">3-in-1</th>
+      <th rowspan="2" scope="col">Ballpoint</th>
+    </tr>
+    <tr class="hsub">
+      <th scope="col">0.35 mm</th>
+      <th scope="col">0.5 mm</th>
+      <th scope="col">0.7 mm</th>
+      <th scope="col">0.9 mm</th>
+      <th scope="col">1.0 mm</th>
+      <th scope="col" class="sep-col" title="600 Lead Holder (family variant; not a mechanical pencil)">2.0 mm</th>
     </tr>
   </thead>
-
-  <tbody>
-    <tr class="tone-dark" style="--c:#612020;">
-      <td><span class="ink-dark" style="color:#612020;">Chocolat (Chocolate Truffle)</span></td>
-      <td></td><td><span class="dot sel" data-key="Chocolat|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td><span class="dot sel" data-key="Chocolat|Ballpoint">●</span></td>
-    </tr>
-    <tr class="tone-dark" style="--c:#B71C1C;">
-      <td><span class="ink-dark" style="color:#B71C1C;">Madder Red</span></td>
-      <td></td><td><span class="dot sel" data-key="Madder Red|0.5">●</span></td><td><span class="dot sel" data-key="Madder Red|0.7">●</span></td><td></td><td></td><td></td><td></td><td><span class="dot sel" data-key="Madder Red|Ballpoint">●</span></td>
-    </tr>
-    <tr class="tone-light" style="--c:#D88F8F;">
-      <td><span class="ink-light" style="color:#D88F8F;">Rose Gold</span></td>
-      <td></td><td><span class="dot sel" data-key="Rose Gold|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td><span class="dot sel" data-key="Rose Gold|Ballpoint">●</span></td>
-    </tr>
-    <tr class="tone-light" style="--c:#C6A94B;">
-      <td><span class="ink-light" style="color:#C6A94B;">Gold</span></td>
-      <td></td><td><span class="dot sel" data-key="Gold|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td><span class="dot sel" data-key="Gold|Ballpoint">●</span></td>
-    </tr>
-    <tr class="tone-light" style="--c:#F4D03F;">
-      <td><span class="ink-light" style="color:#F4D03F;">Loft Yellow</span></td>
-      <td></td><td><span class="dot sel" data-key="Loft Yellow|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr class="tone-light" style="--c:#7FEDEC;">
-      <td><span class="ink-light" style="color:#7FEDEC;">Ice Mint</span></td>
-      <td></td><td><span class="dot sel" data-key="Ice Mint|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr class="tone-dark" style="--c:#4A5A39;">
-      <td><span class="ink-dark" style="color:#4A5A39;">Camouflage Green</span></td>
-      <td></td><td><span class="dot sel" data-key="Camouflage Green|0.5">●</span></td><td><span class="dot sel" data-key="Camouflage Green|0.7">●</span></td><td></td><td></td><td></td><td><span class="dot sel" data-key="Camouflage Green|3-in-1">●</span></td><td><span class="dot sel" data-key="Camouflage Green|Ballpoint">●</span></td>
-    </tr>
-    <tr class="tone-dark" style="--c:#102A4A;">
-      <td><span class="ink-dark" style="color:#102A4A;">Dark / Midnight Blue</span></td>
-      <td></td><td><span class="dot sel" data-key="Dark / Midnight Blue|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr class="tone-dark" style="--c:#1D3A5F;">
-      <td><span class="ink-dark" style="color:#1D3A5F;">Iron Blue</span></td>
-      <td></td><td><span class="dot sel" data-key="Iron Blue|0.5">●</span></td><td><span class="dot sel" data-key="Iron Blue|0.7">●</span></td><td></td><td></td><td></td><td><span class="dot sel" data-key="Iron Blue|3-in-1">●</span></td><td><span class="dot sel" data-key="Iron Blue|Ballpoint">●</span></td>
-    </tr>
-    <tr class="tone-dark very-dark" style="--c:#000000;">
-      <td><span class="ink-black">Black</span></td>
-      <td><span class="dot sel" data-key="Black|0.35">●</span></td><td><span class="dot sel" data-key="Black|0.5">●</span></td><td><span class="dot sel" data-key="Black|0.7">●</span></td>
-      <td class="disc-col"><span class="dot sel dim" data-key="Black|0.9">○</span></td>
-      <td class="disc-col"><span class="dot sel dim" data-key="Black|1.0">○</span></td>
-      <td class="disc-col"><span class="dot sel" data-key="Black|2.0">●</span></td><td><span class="dot sel" data-key="Black|3-in-1">●</span></td><td><span class="dot sel" data-key="Black|Ballpoint">●</span></td>
-    </tr>
-    <tr class="tone-dark nearly-dark" style="--c:#555555;">
-      <td><span class="ink-dark" style="color:#555555;">Dark Stone</span></td>
-      <td></td><td><span class="dot sel" data-key="Dark Stone|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td><span class="dot sel" data-key="Dark Stone|Ballpoint">●</span></td>
-    </tr>
-    <tr class="tone-light" style="--c:#C0C0C0;">
-      <td><span class="ink-light" style="color:#C0C0C0;">Silver</span></td>
-      <td><span class="dot sel" data-key="Silver|0.35">●</span></td><td><span class="dot sel" data-key="Silver|0.5">●</span></td><td><span class="dot sel" data-key="Silver|0.7">●</span></td>
-      <td class="disc-col"><span class="dot sel dim" data-key="Silver|0.9">○</span></td>
-      <td class="disc-col"><span class="dot sel dim" data-key="Silver|1.0">○</span></td>
-      <td class="disc-col"><span class="dot sel" data-key="Silver|2.0">●</span></td><td><span class="dot sel" data-key="Silver|3-in-1">●</span></td><td><span class="dot sel" data-key="Silver|Ballpoint">●</span></td>
-    </tr>
-    <tr class="tone-light" style="--c:#F9F9F9;">
-      <td><span class="ink-light" style="color:#F9F9F9;">Pearl White</span></td>
-      <td></td><td><span class="dot sel" data-key="Pearl White|0.5">●</span></td><td></td><td></td><td></td><td></td>
-      <td><span class="dot sel" data-key="Pearl White|3-in-1">●</span></td><td><span class="dot sel" data-key="Pearl White|Ballpoint">●</span></td>
-    </tr>
-    <tr class="tone-dark" style="--c:#222222;">
-      <td><span class="ink-dark" style="color:#222222;">Itoya Limited Black</span></td>
-      <td></td><td><span class="dot sel" data-key="Itoya Limited Black|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr class="tone-light" style="--c:#E6E6E6;">
-      <td><span class="ink-light" style="color:#E6E6E6;">Itoya Limited White</span></td>
-      <td></td><td><span class="dot sel" data-key="Itoya Limited White|0.5">●</span></td><td></td><td></td><td></td><td></td><td></td><td></td>
-    </tr>
-    <tr class="tone-light" style="--c:#d0d0d0;">
-      <td><span class="ink-light" style="color:#d0d0d0;">Supreme edition</span></td>
-      <td></td><td></td><td></td><td></td><td></td><td></td>
-      <td><span class="dot sel" data-key="Supreme edition|3-in-1">●</span></td><td></td>
-    </tr>
+  <tbody id="matrixBody">
+    <!-- rows rendered from JSON -->
   </tbody>
+
+  <caption id="notes">
+    <strong>Notes:</strong><br>
+    “2.0 mm” is the 600 Lead Holder (family variant).<br>
+    <div class="sources">
+      <details>
+        <summary>Sources &amp; citations (click to expand)</summary>
+        <div class="body">
+          <ol>
+            <li><a href="https://www.youtube.com/watch?v=FKvowEXtYsc" target="_blank" rel="noopener">Ultimate Collector’s Guide to rOtring 600 (Rotring Museum collab) — video</a> (Björn &amp; Dux / Rotring Museum).</li>
+            <li><a href="https://rotring-museum.com/" target="_blank" rel="noopener">Rotring Museum — Ultimate collector’s guide (article/image gallery)</a> (Björn &amp; Dux).</li>
+            <li><a href="https://stationery.wiki/" target="_blank" rel="noopener">Stationery Wiki</a> — rOtring 600 series pages.</li>
+            <li><a href="https://www.jetpens.com/Rotring-600/s/1311" target="_blank" rel="noopener">JetPens — rOtring 600 listings</a> (modern SKUs, color waves).</li>
+            <li><a href="https://knockology.wordpress.com/" target="_blank" rel="noopener">Knockology</a> — posts on 600 generations &amp; modern runs.</li>
+            <li>JDirectItems Auction (Japan) — model/finish confirmations (use label “JDirectItems Auction”).</li>
+            <li>Rotring × Holbein 3-in-1 (2020) — brand announcement & retailer listings.</li>
+            <li>Community catalogue scans / forum threads (article numbers and print variations).</li>
+          </ol>
+          <div style="margin-top:8px;">Matrix rev: <strong>2025-10-17</strong>. Lead-size-by-generation per Rotring Museum guide; modern SKUs from retailer/brand sources. “600G” = Gen 4 only (1992), precursor to 800 (1993).</div>
+        </div>
+      </details>
+    </div>
+  </caption>
 </table>
+
+<!-- Inline data seed (edit here to update) -->
+<script id="rotring600Seed" type="application/json">
+{
+  "rev": "2025-10-17.01",
+  "generations": [
+    { "id": "gen1", "name": "Gen 1 (1987–1989)", "years": { "start": 1987, "end": 1989 } },
+    { "id": "gen2", "name": "Gen 2 (1989)", "years": { "start": 1989, "end": 1989 } },
+    { "id": "gen3", "name": "Gen 3 (1990)", "years": { "start": 1990, "end": 1990 } },
+    { "id": "gen4", "name": "Gen 4 (1990–1994)", "years": { "start": 1990, "end": 1994 } },
+    { "id": "gen5", "name": "Gen 5 (1994–1999)", "years": { "start": 1994, "end": 1999 } },
+    { "id": "gen6", "name": "Gen 6 (1999–2001)", "years": { "start": 1999, "end": 2001 } },
+    { "id": "gen7", "name": "Gen 7 (2002–2004)", "years": { "start": 2002, "end": 2004 } },
+    { "id": "gen8", "name": "Gen 8 (2012–present)", "years": { "start": 2012, "end": null } }
+  ],
+  "products": [
+    { "id": "g1_black_05", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "discontinued", "generationIds": ["gen1"] },
+    { "id": "g1_silver_05", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "discontinued", "generationIds": ["gen1"] },
+
+    { "id": "g2_black_05", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "discontinued", "generationIds": ["gen2"] },
+    { "id": "g2_silver_05", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "discontinued", "generationIds": ["gen2"] },
+
+    { "id": "g3_black_03", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.3", "tableColumn": "0.35", "availability": "present", "status": "discontinued", "generationIds": ["gen3"] },
+    { "id": "g3_black_05", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "discontinued", "generationIds": ["gen3"] },
+    { "id": "g3_black_07", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.7", "tableColumn": "0.7", "availability": "present", "status": "discontinued", "generationIds": ["gen3"] },
+    { "id": "g3_black_09", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.9", "tableColumn": "0.9", "availability": "present", "status": "discontinued", "generationIds": ["gen3"] },
+
+    { "id": "g3_silver_03", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.3", "tableColumn": "0.35", "availability": "present", "status": "discontinued", "generationIds": ["gen3"] },
+    { "id": "g3_silver_05", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "discontinued", "generationIds": ["gen3"] },
+    { "id": "g3_silver_07", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.7", "tableColumn": "0.7", "availability": "present", "status": "discontinued", "generationIds": ["gen3"] },
+    { "id": "g3_silver_09", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.9", "tableColumn": "0.9", "availability": "present", "status": "discontinued", "generationIds": ["gen3"] },
+
+    { "id": "g4_black_03", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.3", "tableColumn": "0.35", "availability": "present", "status": "discontinued", "generationIds": ["gen4"] },
+    { "id": "g4_black_05", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "discontinued", "generationIds": ["gen4"] },
+    { "id": "g4_black_07", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.7", "tableColumn": "0.7", "availability": "present", "status": "discontinued", "generationIds": ["gen4"] },
+
+    { "id": "g4_silver_03", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.3", "tableColumn": "0.35", "availability": "present", "status": "discontinued", "generationIds": ["gen4"] },
+    { "id": "g4_silver_05", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "discontinued", "generationIds": ["gen4"] },
+    { "id": "g4_silver_07", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.7", "tableColumn": "0.7", "availability": "present", "status": "discontinued", "generationIds": ["gen4"] },
+
+    { "id": "g4_black_05_g", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "discontinued", "generationIds": ["gen4"], "features": { "retractableTip": true }, "variant": "600G" },
+    { "id": "g4_black_07_g", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.7", "tableColumn": "0.7", "availability": "present", "status": "discontinued", "generationIds": ["gen4"], "features": { "retractableTip": true }, "variant": "600G" },
+    { "id": "g4_silver_05_g", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "discontinued", "generationIds": ["gen4"], "features": { "retractableTip": true }, "variant": "600G" },
+    { "id": "g4_silver_07_g", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.7", "tableColumn": "0.7", "availability": "present", "status": "discontinued", "generationIds": ["gen4"], "features": { "retractableTip": true }, "variant": "600G" },
+
+    { "id": "g4_black_20", "type": "lead-holder", "finish": "Black", "colorHex": "#000000", "leadSize": "2.0", "tableColumn": "2.0", "availability": "present", "status": "discontinued", "generationIds": ["gen4"] },
+    { "id": "g4_silver_20", "type": "lead-holder", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "2.0", "tableColumn": "2.0", "availability": "present", "status": "discontinued", "generationIds": ["gen4"] },
+
+    { "id": "g5_black_035", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.35", "tableColumn": "0.35", "availability": "present", "status": "discontinued", "generationIds": ["gen5"] },
+    { "id": "g5_black_05", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "discontinued", "generationIds": ["gen5"] },
+    { "id": "g5_black_07", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.7", "tableColumn": "0.7", "availability": "present", "status": "discontinued", "generationIds": ["gen5"] },
+    { "id": "g5_black_10", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "1.0", "tableColumn": "1.0", "availability": "present", "status": "discontinued", "generationIds": ["gen5"] },
+
+    { "id": "g5_silver_035", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.35", "tableColumn": "0.35", "availability": "present", "status": "discontinued", "generationIds": ["gen5"] },
+    { "id": "g5_silver_05", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "discontinued", "generationIds": ["gen5"] },
+    { "id": "g5_silver_07", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.7", "tableColumn": "0.7", "availability": "present", "status": "discontinued", "generationIds": ["gen5"] },
+    { "id": "g5_silver_10", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "1.0", "tableColumn": "1.0", "availability": "present", "status": "discontinued", "generationIds": ["gen5"] },
+
+    { "id": "g5_black_20", "type": "lead-holder", "finish": "Black", "colorHex": "#000000", "leadSize": "2.0", "tableColumn": "2.0", "availability": "present", "status": "discontinued", "generationIds": ["gen5"] },
+    { "id": "g5_silver_20", "type": "lead-holder", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "2.0", "tableColumn": "2.0", "availability": "present", "status": "discontinued", "generationIds": ["gen5"] },
+
+    { "id": "g6_black_035", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.35", "tableColumn": "0.35", "availability": "present", "status": "discontinued", "generationIds": ["gen6"] },
+    { "id": "g6_black_05", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "discontinued", "generationIds": ["gen6"] },
+    { "id": "g6_black_07", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.7", "tableColumn": "0.7", "availability": "present", "status": "discontinued", "generationIds": ["gen6"] },
+    { "id": "g6_black_10", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "1.0", "tableColumn": "1.0", "availability": "present", "status": "discontinued", "generationIds": ["gen6"] },
+
+    { "id": "g6_silver_035", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.35", "tableColumn": "0.35", "availability": "present", "status": "discontinued", "generationIds": ["gen6"] },
+    { "id": "g6_silver_05", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "discontinued", "generationIds": ["gen6"] },
+    { "id": "g6_silver_07", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.7", "tableColumn": "0.7", "availability": "present", "status": "discontinued", "generationIds": ["gen6"] },
+    { "id": "g6_silver_10", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "1.0", "tableColumn": "1.0", "availability": "present", "status": "discontinued", "generationIds": ["gen6"] },
+
+    { "id": "g6_black_20", "type": "lead-holder", "finish": "Black", "colorHex": "#000000", "leadSize": "2.0", "tableColumn": "2.0", "availability": "present", "status": "discontinued", "generationIds": ["gen6"] },
+    { "id": "g6_silver_20", "type": "lead-holder", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "2.0", "tableColumn": "2.0", "availability": "present", "status": "discontinued", "generationIds": ["gen6"] },
+
+    { "id": "g7_black_035", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.35", "tableColumn": "0.35", "availability": "present", "status": "discontinued", "generationIds": ["gen7"] },
+    { "id": "g7_black_05", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "discontinued", "generationIds": ["gen7"] },
+    { "id": "g7_black_07", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.7", "tableColumn": "0.7", "availability": "present", "status": "discontinued", "generationIds": ["gen7"] },
+    { "id": "g7_black_10", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "1.0", "tableColumn": "1.0", "availability": "present", "status": "discontinued", "generationIds": ["gen7"] },
+
+    { "id": "g7_silver_035", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.35", "tableColumn": "0.35", "availability": "present", "status": "discontinued", "generationIds": ["gen7"] },
+    { "id": "g7_silver_05", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "discontinued", "generationIds": ["gen7"] },
+    { "id": "g7_silver_07", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.7", "tableColumn": "0.7", "availability": "present", "status": "discontinued", "generationIds": ["gen7"] },
+    { "id": "g7_silver_10", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "1.0", "tableColumn": "1.0", "availability": "present", "status": "discontinued", "generationIds": ["gen7"] },
+
+    { "id": "g8_black_05", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "g8_black_07", "type": "pencil", "finish": "Black", "colorHex": "#000000", "leadSize": "0.7", "tableColumn": "0.7", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "g8_silver_05", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "g8_silver_07", "type": "pencil", "finish": "Silver", "colorHex": "#C0C0C0", "leadSize": "0.7", "tableColumn": "0.7", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+
+    { "id": "madder_05", "type": "pencil", "finish": "Madder Red", "colorHex": "#B71C1C", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "madder_07", "type": "pencil", "finish": "Madder Red", "colorHex": "#B71C1C", "leadSize": "0.7", "tableColumn": "0.7", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "camo_05", "type": "pencil", "finish": "Camouflage Green", "colorHex": "#4A5A39", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "camo_07", "type": "pencil", "finish": "Camouflage Green", "colorHex": "#4A5A39", "leadSize": "0.7", "tableColumn": "0.7", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "iron_05", "type": "pencil", "finish": "Iron Blue", "colorHex": "#1D3A5F", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "iron_07", "type": "pencil", "finish": "Iron Blue", "colorHex": "#1D3A5F", "leadSize": "0.7", "tableColumn": "0.7", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+
+    { "id": "gold_05", "type": "pencil", "finish": "Gold", "colorHex": "#C6A94B", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "rosegold_05", "type": "pencil", "finish": "Rose Gold", "colorHex": "#D88F8F", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "pearl_05", "type": "pencil", "finish": "Pearl White", "colorHex": "#F9F9F9", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "lofty_05", "type": "pencil", "finish": "Loft Yellow", "colorHex": "#F4D03F", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+
+    { "id": "mint_05", "type": "pencil", "finish": "Ice Mint", "colorHex": "#7FEDEC", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "midnight_05", "type": "pencil", "finish": "Dark / Midnight Blue", "colorHex": "#102A4A", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+
+    { "id": "itoya_b_05", "type": "pencil", "finish": "Itoya Limited Black", "colorHex": "#222222", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "current-limited", "generationIds": ["gen8"] },
+    { "id": "itoya_w_05", "type": "pencil", "finish": "Itoya Limited White", "colorHex": "#E6E6E6", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "current-limited", "generationIds": ["gen8"] },
+
+    { "id": "chocolat_05", "type": "pencil", "finish": "Chocolat (Chocolate Truffle)", "colorHex": "#612020", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "darkstone_05", "type": "pencil", "finish": "Dark Stone", "colorHex": "#555555", "leadSize": "0.5", "tableColumn": "0.5", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+
+    { "id": "camo_3in1", "type": "multipen", "finish": "Camouflage Green", "colorHex": "#4A5A39", "tableColumn": "3-in-1", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "iron_3in1", "type": "multipen", "finish": "Iron Blue", "colorHex": "#1D3A5F", "tableColumn": "3-in-1", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "pearl_3in1", "type": "multipen", "finish": "Pearl White", "colorHex": "#F9F9F9", "tableColumn": "3-in-1", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "silver_3in1", "type": "multipen", "finish": "Silver", "colorHex": "#C0C0C0", "tableColumn": "3-in-1", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "supreme_3in1", "type": "multipen", "finish": "Supreme edition", "colorHex": "#d0d0d0", "tableColumn": "3-in-1", "availability": "present", "status": "current-limited", "generationIds": ["gen8"] },
+    { "id": "holbein_3in1", "type": "multipen", "finish": "Holbein collaboration", "colorHex": "#FFFFFF", "tableColumn": "3-in-1", "availability": "present", "status": "current-limited", "generationIds": ["gen8"] },
+    { "id": "black_3in1", "type": "multipen", "finish": "Black", "colorHex": "#000000", "tableColumn": "3-in-1", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+
+    { "id": "chocolat_bp", "type": "ballpoint", "finish": "Chocolat (Chocolate Truffle)", "colorHex": "#612020", "tableColumn": "Ballpoint", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "rosegold_bp", "type": "ballpoint", "finish": "Rose Gold", "colorHex": "#D88F8F", "tableColumn": "Ballpoint", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "gold_bp", "type": "ballpoint", "finish": "Gold", "colorHex": "#C6A94B", "tableColumn": "Ballpoint", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "darkstone_bp", "type": "ballpoint", "finish": "Dark Stone", "colorHex": "#555555", "tableColumn": "Ballpoint", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "iron_bp", "type": "ballpoint", "finish": "Iron Blue", "colorHex": "#1D3A5F", "tableColumn": "Ballpoint", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "silver_bp", "type": "ballpoint", "finish": "Silver", "colorHex": "#C0C0C0", "tableColumn": "Ballpoint", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "madder_bp", "type": "ballpoint", "finish": "Madder Red", "colorHex": "#B71C1C", "tableColumn": "Ballpoint", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "camo_bp", "type": "ballpoint", "finish": "Camouflage Green", "colorHex": "#4A5A39", "tableColumn": "Ballpoint", "availability": "present", "status": "current", "generationIds": ["gen8"] },
+    { "id": "black_bp", "type": "ballpoint", "finish": "Black", "colorHex": "#000000", "tableColumn": "Ballpoint", "availability": "present", "status": "current", "generationIds": ["gen8"] }
+  ],
+  "modelIndex": {
+    "Black|0.3":  { "codeByGen": { "gen3": "502 603", "gen4": "502 603" } },
+    "Black|0.5":  { "codeByGen": { "gen1": "(—)", "gen2": "(—)", "gen3": "502 605", "gen4": "502 605", "gen5": "R502 605", "gen6": "R502 605", "gen7": "R502 605" } },
+    "Black|0.7":  { "codeByGen": { "gen3": "502 607", "gen4": "502 607", "gen5": "R502 607", "gen6": "R502 607", "gen7": "R502 607" } },
+    "Black|0.9":  { "codeByGen": { "gen3": "502 609" } },
+    "Black|1.0":  { "codeByGen": { "gen5": "R502 609", "gen6": "R502 609", "gen7": "R502 609" } },
+    "Black|0.35": { "codeByGen": { "gen5": "R502 603", "gen6": "R502 603", "gen7": "R502 603" } },
+
+    "Silver|0.3": { "codeByGen": { "gen3": "502 613", "gen4": "502 613" } },
+    "Silver|0.5": { "codeByGen": { "gen1": "(—)", "gen2": "(—)", "gen3": "502 615", "gen4": "502 615", "gen5": "R502 615", "gen6": "R502 615", "gen7": "R502 615" } },
+    "Silver|0.7": { "codeByGen": { "gen3": "502 617", "gen4": "502 617", "gen5": "R502 617", "gen6": "R502 617", "gen7": "R502 617" } },
+    "Silver|0.9": { "codeByGen": { "gen3": "502 619" } },
+    "Silver|1.0": { "codeByGen": { "gen5": "R502 619", "gen6": "R502 619", "gen7": "R502 619" } },
+    "Silver|0.35": { "codeByGen": { "gen5": "R502 613", "gen6": "R502 613", "gen7": "R502 613" } },
+
+    "Black|0.5|gen8":  { "code": "1904443" },
+    "Black|0.7|gen8":  { "code": "1904442" },
+    "Silver|0.5|gen8": { "code": "1904445" },
+    "Silver|0.7|gen8": { "code": "1904444" },
+
+    "Madder Red|0.5": { "codeByGen": { "gen8": "21 19800" } },
+    "Madder Red|0.7": { "codeByGen": { "gen8": "21 19973" } },
+    "Camouflage Green|0.5": { "codeByGen": { "gen8": "21 19972" } },
+    "Camouflage Green|0.7": { "codeByGen": { "gen8": "21 19975" } },
+    "Iron Blue|0.5": { "codeByGen": { "gen8": "21 19971" } },
+    "Iron Blue|0.7": { "codeByGen": { "gen8": "21 19974" } },
+    "Gold|0.5": { "codeByGen": { "gen8": "21 58796" } },
+    "Rose Gold|0.5": { "codeByGen": { "gen8": "21 58794" } },
+    "Pearl White|0.5": { "codeByGen": { "gen8": "21 58795" } },
+    "Chocolat (Chocolate Truffle)|0.5": { "codeByGen": { "gen8": "22 04410" } },
+    "Dark Stone|0.5": { "codeByGen": { "gen8": "22 04409" } },
+
+    "Black|2.0": { "code": "1910860" },
+    "Silver|2.0": { "code": "1910872" }
+  }
+}
+
+</script>
 
 <script>
 (function(){
   const KEY = "rotring600Owned";
 
-  const dots = Array.from(document.querySelectorAll(".dot.sel"));
-  let owned = {};
-  try { owned = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch(e) { owned = {}; }
+  // Columns in display order
+  const COLS = ["0.35","0.5","0.7","0.9","1.0","2.0","3-in-1","Ballpoint"];
+  const SEP_COL = "2.0";
 
-  function ensureCheck(dot){
-    // remove any existing check first
-    const prev = dot.querySelector(".check");
-    if (prev) prev.remove();
-    // create crisp SVG check
-    const wrap = document.createElement("span");
-    wrap.className = "check";
-    wrap.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg>';
-    dot.appendChild(wrap);
+// ---- Preferred display order for finishes (edit to taste)
+const FINISH_ORDER = [
+  "Chocolat (Chocolate Truffle)",
+  "Madder Red",
+  "Rose Gold",
+  "Gold",
+  "Loft Yellow",
+  "Ice Mint",
+  "Camouflage Green",
+  "Dark / Midnight Blue",
+  "Iron Blue",
+  "Black",
+  "Dark Stone",
+  "Silver",
+  "Pearl White",
+  "Itoya Limited Black",
+  "Itoya Limited White",
+  "Supreme edition",
+  "Holbein collaboration"
+];
+const finishRank = new Map(FINISH_ORDER.map((n,i)=>[n,i]));
+function compareFinishes(aName, bName){
+  const A = finishRank.has(aName) ? finishRank.get(aName) : 9_000 + aName.localeCompare(bName);
+  const B = finishRank.has(bName) ? finishRank.get(bName) : 9_000 + bName.localeCompare(aName);
+  return A - B;
+}
+
+  // State
+  let owned = {};
+  let lastProducts = [];
+  let generationsData = [];
+  let modelIndex = {};
+  let activeGenIds = [];     // empty = All
+  let activeColor  = "";     // "" = All
+  let groupMode    = "default"; // "default" | "rowsColors" | "rowsGens"
+
+  // Debounced save
+  let saveTimer = null;
+  function saveOwned(){
+    if (saveTimer) cancelAnimationFrame(saveTimer);
+    saveTimer = requestAnimationFrame(()=> {
+      try{ localStorage.setItem(KEY, JSON.stringify(owned)); }catch(e){}
+    });
+  }
+
+  // Helpers
+  // Inject a crisp SVG check unless explicitly suppressed for gen-number bullets (Mode C)
+function ensureCheck(dot){
+  // Only suppress when we're in Mode C (rowsColors) AND this dot is a numbered generation bullet
+  const suppress =
+    document.body.classList.contains("no-check-mode") &&
+    dot.dataset.kind === "gen";
+  if (suppress) return;
+
+  const prev = dot.querySelector(".check");
+  if (prev) return;
+  const wrap = document.createElement("span");
+  wrap.className = "check";
+  wrap.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg>';
+  dot.appendChild(wrap);
+}
+
+  function colorHexForFinish(finish){
+    const p = lastProducts.find(x => x.finish === finish && x.colorHex);
+    return p ? p.colorHex : "";
   }
 
   function removeCheck(dot){
     const prev = dot.querySelector(".check");
     if (prev) prev.remove();
   }
+  function genKey(baseKey, genId){ return `${baseKey}::${genId}`; }
+  function baseKeyFrom(dot){ return dot.dataset.key; }
 
-  function applyState(dot){
-    const k = dot.dataset.key;
-    const on = !!owned[k];
-    dot.classList.toggle("owned", on);
-    dot.setAttribute("aria-pressed", on ? "true" : "false");
-    dot.title = (on ? "Owned — click to unmark" : "Click to mark as owned");
-    // Vintage ring flips ○↔●
-    if (dot.classList.contains("dim")) dot.textContent = on ? "●" : "○";
-    // Manage crisp SVG check
-    if (on) ensureCheck(dot); else removeCheck(dot);
+  function getGenerationsFor(finish, col){
+    const out = new Set();
+    lastProducts.forEach(p=>{
+      const c = p.tableColumn || (p.type==="multipen" ? "3-in-1" : (p.type==="ballpoint" ? "Ballpoint" : p.leadSize));
+      if (p.finish === finish && c === col){ (p.generationIds||[]).forEach(id => out.add(id)); }
+    });
+    return Array.from(out);
   }
 
-  dots.forEach(dot => {
-    dot.setAttribute("role","button");
-    dot.setAttribute("tabindex","0");
-    applyState(dot);
+  /* SVG “negative numeral” (filled circle, punched-out number) */
+  function genNegNumSVG(n){
+    const txt = String(n);
+    return `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="10.5" fill="currentColor"/>
+        <g transform="translate(12,12)">
+          <text
+            x="0" y="0" dy="-1"
+            text-anchor="middle"
+            dominant-baseline="central"
+            font-size="13.2"
+            font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial"
+            font-weight="500"
+            class="num">${txt}</text>
+        </g>
+      </svg>`;
+  }
 
-    function toggle(){
-      const k = dot.dataset.key;
-      const turnOn = !dot.classList.contains("owned");
-      if (dot.classList.contains("dim")) dot.textContent = turnOn ? "●" : "○";
-      if (turnOn) { owned[k] = true; ensureCheck(dot); }
-      else { delete owned[k]; removeCheck(dot); }
-      localStorage.setItem(KEY, JSON.stringify(owned));
-      applyState(dot);
+  function contextLabel(dot){
+    const [finish, col] = (baseKeyFrom(dot) || "").split("|");
+    const genName = (generationsData.find(g => g.id === dot.dataset.gen)?.name) || dot.dataset.gen || "";
+    const bits = [];
+    if (finish) bits.push(finish);
+    if (col) bits.push(col);
+    if (genName) bits.push(genName);
+    return bits.join(" — ");
+  }
+
+
+  // Apply dot state by owned map
+  function applyState(dot){
+    const base = baseKeyFrom(dot);
+    const gid  = dot.dataset.gen;
+    const isVintage = dot.dataset.vintage === "1";
+
+    let on = false;
+    if (gid){
+      on = !!owned[genKey(base, gid)];
+    } else {
+      const gens = getGenerationsFor(...base.split("|"));
+      on = gens.some(id => owned[genKey(base, id)]);
     }
 
-    dot.addEventListener("click", toggle);
-    dot.addEventListener("keydown", (e)=>{
-      if (e.key === " " || e.key === "Enter"){ e.preventDefault(); toggle(); }
+    dot.classList.toggle("owned", on);
+    dot.setAttribute("aria-pressed", on ? "true" : "false");
+
+    // ✅ Contextual tooltip (finish / column / generation)
+    const ctx = contextLabel(dot);
+    dot.title = (on ? "Owned — click to unmark" : "Click to mark as owned") + (ctx ? `\n${ctx}` : "");
+
+    if (isVintage){
+      if (on){
+        dot.textContent = "●";
+        dot.classList.remove("dim");
+        ensureCheck(dot);
+      } else {
+        dot.textContent = "○";
+        dot.classList.add("dim");
+        removeCheck(dot);
+      }
+    } else {
+      if (on) ensureCheck(dot); else removeCheck(dot);
+    }
+  }
+
+  // Build rows for Standard mode (rows = finishes)
+  function productsToRows(products){
+    const byFinish = new Map();
+    products.forEach(p=>{
+      const col = p.tableColumn || (p.type==="multipen" ? "3-in-1" : (p.type==="ballpoint" ? "Ballpoint" : p.leadSize));
+      if (!COLS.includes(col)) return;
+      const rec = byFinish.get(p.finish) || { name:p.finish, color:"", tone:"", cells:{} };
+      rec.cells[col] = "present"; // <-- always present
+      if (!rec.color && p.colorHex) rec.color = p.colorHex;
+      if (!rec.tone) rec.tone = (typeof toneFromHex === "function" ? toneFromHex(p.colorHex) : (p.tone || ""));
+      byFinish.set(p.finish, rec);
+    });
+    return Array.from(byFinish.values()).sort((a,b)=>compareFinishes(a.name,b.name));
+  }
+
+
+
+  // Mode B (Color selected): rows = generations for that color
+  function productsToGenRows(finish, products, gens){
+    const byGen = new Map();
+    (gens||[]).forEach(g=> byGen.set(g.id, { name:g.name||g.id, genId:g.id, cells:{} }) );
+    products.forEach(p=>{
+      if (p.finish !== finish) return;
+      const col = p.tableColumn || (p.type==="multipen" ? "3-in-1" : (p.type==="ballpoint" ? "Ballpoint" : p.leadSize));
+      if (!COLS.includes(col)) return;
+      (p.generationIds||[]).forEach(gid=>{
+        const rec = byGen.get(gid) || { name: gid, genId: gid, cells:{} };
+        rec.cells[col] = "present"; // gen-scoped view: no ○ vintage indicator
+        byGen.set(gid, rec);
+      });
+    });
+    return Array.from(byGen.values()).filter(r=>Object.keys(r.cells).length>0);
+  }
+
+  // Mode C: Rows = Colors, cells = array of generation IDs (bullets numbered)
+  function productsToRowsColorsMultigen(products){
+    const byFinish = new Map();
+    products.forEach(p=>{
+      const col = p.tableColumn || (p.type==="multipen" ? "3-in-1" : (p.type==="ballpoint" ? "Ballpoint" : p.leadSize));
+      if (!COLS.includes(col)) return;
+      const rec = byFinish.get(p.finish) || { name:p.finish, tone:"", ink:p.ink||"", color:"", cells:{} };
+      (p.generationIds||[]).forEach(gid=>{
+        rec.cells[col] = rec.cells[col] || [];
+        if (!rec.cells[col].includes(gid)) rec.cells[col].push(gid);
+      });
+      if (!rec.color && p.colorHex) rec.color = p.colorHex;
+      if (!rec.tone) rec.tone = (typeof toneFromHex === "function" ? toneFromHex(p.colorHex) : (p.tone || ""));
+      byFinish.set(p.finish, rec);
+    });
+    return Array.from(byFinish.values()).sort((a,b)=>compareFinishes(a.name,b.name));
+  }
+
+// --- tone helper for individual color bullets (Mode D)
+function toneFromHex(hex){
+  if (!hex) return "";
+  const m = hex.replace('#','').match(/^([0-9a-f]{6})$/i);
+  if (!m) return "";
+  const r = parseInt(m[1].slice(0,2),16) / 255;
+  const g = parseInt(m[1].slice(2,4),16) / 255;
+  const b = parseInt(m[1].slice(4,6),16) / 255;
+  const lin = v => (v <= 0.04045 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4));
+  const L = 0.2126*lin(r) + 0.7152*lin(g) + 0.0722*lin(b); // relative luminance
+
+  // IMPORTANT: include "tone-dark" alongside "very-dark" so --check resolves
+  if (L < 0.08)  return "tone-dark very-dark";
+  if (L < 0.18)  return "tone-dark nearly-dark";
+  if (L < 0.45)  return "tone-dark";
+  return "tone-light";
+}
+
+function toneFromCssColor(cssColor){
+  const m = String(cssColor).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+  if (!m) return "";
+  const r = parseInt(m[1],10)/255, g = parseInt(m[2],10)/255, b = parseInt(m[3],10)/255;
+  const lin = v => (v <= 0.04045 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4));
+  const L = 0.2126*lin(r) + 0.7152*lin(g) + 0.0722*lin(b);
+  if (L < 0.08) return "very-dark tone-dark";
+  if (L < 0.18) return "tone-dark nearly-dark";
+  if (L < 0.45) return "tone-dark";
+  return "tone-light";
+}
+
+// Mode D: Rows = Generations, cells = array of finishes (bullets colored)
+function productsToRowsGensMulticolor(products, gens){
+  const byGen = new Map();
+  (gens || []).forEach(g => byGen.set(g.id, { name: g.name || g.id, genId: g.id, cells: {} }));
+
+  products.forEach(p => {
+    const col = p.tableColumn || (p.type === "multipen" ? "3-in-1" : (p.type === "ballpoint" ? "Ballpoint" : p.leadSize));
+    if (!COLS.includes(col)) return;
+
+    (p.generationIds || []).forEach(gid => {
+      const rec = byGen.get(gid) || { name: gid, genId: gid, cells: {} };
+      if (!rec.cells[col]) {
+        rec.cells[col] = [];
+        rec.cells[col]._seen = new Set(); // de-dupe finishes within the cell
+      }
+      const seen = rec.cells[col]._seen;
+      if (!seen.has(p.finish)) {
+        rec.cells[col].push({
+          finish: p.finish,
+          color: p.colorHex,
+          // derive tone on the item so each bullet can style its own check contrast
+            // (toneFromHex is the helper we added earlier; guard if absent)
+          tone: (typeof toneFromHex === "function" ? toneFromHex(p.colorHex) : (p.tone || "")),
+          ink: p.ink
+        });
+        seen.add(p.finish);
+      }
+      byGen.set(gid, rec);
     });
   });
 
-  // Reset
-  const btn = document.getElementById("resetOwned");
-  if (btn){
-    btn.addEventListener("click", function(){
-      if (!confirm("Reset all owned marks? This can’t be undone.")) return;
-      localStorage.removeItem(KEY);
-      location.reload();
+  // Sort bullet arrays in each populated cell by preferred finish order
+  byGen.forEach(rec => {
+    Object.keys(rec.cells).forEach(k => {
+      const arr = rec.cells[k];
+      if (Array.isArray(arr)) {
+        arr.sort((a, b) => compareFinishes(a.finish, b.finish));
+      }
+      // drop the private _seen set before rendering
+      if (arr && arr._seen) delete arr._seen;
+    });
+  });
+
+  return Array.from(byGen.values()).filter(r => Object.keys(r.cells).length > 0);
+}
+
+  // Render matrix rows
+	function renderMatrix(rows){
+	  const tbody = document.getElementById("matrixBody");
+	  if (!tbody || !Array.isArray(rows)) return;
+	  tbody.innerHTML = "";
+
+	  rows.forEach(row=>{
+		const tr = document.createElement("tr");
+		if (row.color) tr.style.setProperty("--c", row.color);
+		if (row.tone) tr.classList.add(...String(row.tone).split(" ").filter(Boolean));
+
+		// Header cell
+        const th = document.createElement("td");
+        th.style.textAlign = "left";
+
+        // ✅ Tint row name in Modes A & C only
+        if (row.color && (groupMode === "default" || groupMode === "rowsColors")) {
+          th.style.color = row.color;                 // visible color
+          th.style.setProperty("--c", row.color);     // keep var for consistency
+        }
+
+        th.textContent = row.name;
+        tr.appendChild(th);
+
+		// Cells
+		COLS.forEach(col=>{
+		  const td = document.createElement("td");
+		  if (col === SEP_COL) td.classList.add("sep-col");
+
+		  const cellState = row.cells?.[col];
+		  if (!cellState){ tr.appendChild(td); return; }
+
+		  // Multi-bullet arrays
+		  if (Array.isArray(cellState)){
+			const count = cellState.length;
+			const gridCols = Math.max(1, Math.ceil(Math.sqrt(count)));
+			const grid = document.createElement("div");
+			grid.className = "cell-grid";
+			grid.style.gridTemplateColumns = `repeat(${gridCols}, minmax(1em, auto))`;
+
+			if (typeof cellState[0] === "string"){
+			  // Mode C: ["gen3","gen5",...]
+			  cellState.forEach(gid=>{
+				const dot = document.createElement("span");
+				dot.className = "dot sel mini gen-num";
+				dot.dataset.key = `${row.name}|${col}`;
+				dot.dataset.gen = gid;
+				dot.dataset.kind = "gen";
+				const n = parseInt(gid.replace("gen",""), 10) || "";
+				dot.innerHTML = genNegNumSVG(n);
+				if (owned[genKey(dot.dataset.key, gid)]) dot.classList.add("owned");
+				grid.appendChild(dot);
+			  });
+			} else {
+			  // Mode D: [{finish,color,tone},...]
+			  cellState.forEach(info=>{
+				const dot = document.createElement("span");
+				dot.className = "dot sel mini";
+				dot.dataset.key = `${info.finish}|${col}`;
+				dot.dataset.gen = (row.genId || "");
+				dot.dataset.kind = "color";
+				if (info.color){
+				  dot.style.color = info.color;
+				  dot.style.setProperty("--c", info.color);
+				  const t = (typeof toneFromHex === "function" ? toneFromHex(info.color) : (info.tone || ""));
+				  if (t) dot.classList.add(...t.split(" "));
+				}
+				dot.textContent = "●";
+				if (owned[genKey(dot.dataset.key, dot.dataset.gen)]) { dot.classList.add("owned"); ensureCheck(dot); }
+				grid.appendChild(dot);
+			  });
+			}
+
+			td.appendChild(grid);
+			tr.appendChild(td);
+			return;
+		  }
+
+		  // Single bullet (Modes A/B)
+		  const span = document.createElement("span");
+		  span.className = "dot sel";
+		  span.dataset.key = `${row.name}|${col}`;
+		  span.dataset.kind = "color";
+		  span.textContent = "●";
+
+		  // Mode B (rows = generations) — color to selected finish & bake gen id
+		  if (activeColor && row.genId){
+			span.dataset.key = `${activeColor}|${col}`;
+			span.dataset.gen = row.genId;
+			const hex = colorHexForFinish(activeColor);
+			if (hex){
+			  span.style.color = hex;
+			  span.style.setProperty("--c", hex);
+			  const t = (typeof toneFromHex === "function" ? toneFromHex(hex) : "");
+			  if (t) span.classList.add(...t.split(" "));
+			}
+		  }
+
+		  td.appendChild(span);
+		  tr.appendChild(td);
+		});
+
+		tbody.appendChild(tr);
+	  });
+
+	  bindDots();
+	}
+
+  // Popover
+  const pop = document.createElement("div");
+  pop.id = "genPopover";
+  pop.className = "pop";
+  document.body.appendChild(pop);
+  let popAnchor = null;
+
+  function featuresForGen(baseKey, genId){
+    const [finish, col] = baseKey.split("|");
+    const matches = lastProducts.filter(p=>{
+      if (p.finish !== finish) return false;
+      const c = p.tableColumn || (p.type==="multipen" ? "3-in-1" : (p.type==="ballpoint" ? "Ballpoint" : p.leadSize));
+      return c===col && Array.isArray(p.generationIds) && p.generationIds.includes(genId);
+    });
+    const flags = { retractableTip:false, variant:null };
+    matches.forEach(p=>{
+      if (p.features?.retractableTip) flags.retractableTip = true;
+      if (p.variant) flags.variant = p.variant;
+    });
+    return flags;
+  }
+
+  function applyGenVariantState(genDot, baseKey, genId){
+    const key = genKey(baseKey, genId);
+    const isOn = !!owned[key];
+    genDot.classList.toggle("owned", isOn);
+    genDot.setAttribute("aria-pressed", isOn ? "true" : "false");
+    genDot.textContent = "●";
+    if (isOn) ensureCheck(genDot); else removeCheck(genDot);
+    const g = generationsData.find(g=>g.id===genId);
+    genDot.title = (isOn ? "Owned — click to unmark" : "Click to mark as owned") + (g ? `\n${g.name}` : "");
+  }
+
+  function openGenPopover(anchorDot, baseKey, genIds){
+    popAnchor = anchorDot;
+    const rect = anchorDot.getBoundingClientRect();
+    const [finish, col] = baseKey.split("|");
+    const meta = modelIndex[baseKey] || modelIndex[`${baseKey}|gen${(genIds[0]||"").replace(/\D/g,"")}`];
+    const modelLine = meta?.code ? `Model: ${meta.code}` : "";
+    const genLabel = (id)=> (generationsData.find(g=>g.id===id)?.name || id);
+    const anchorStyles = getComputedStyle(anchorDot);
+    const anchorColor  = anchorStyles.color;
+    const anchorTone   = Array.from(anchorDot.classList)
+      .filter(c => ["tone-dark","tone-light","nearly-dark","very-dark"].includes(c))
+      .join(" ");
+
+    pop.innerHTML = `
+      <button class="close-x" aria-label="Close">×</button>
+      <h3>${finish} — ${col}</h3>
+      <div class="meta">
+        ${modelLine ? `<span class="badge">${modelLine}</span>` : ``}
+      </div>
+      <div class="gen-dots" role="group" aria-label="Select generations">
+        ${genIds.map(id=>{
+          const codeByGen = (modelIndex[baseKey]?.codeByGen?.[id]) || (modelIndex[`${baseKey}|${id}`]?.code);
+          const codeLine  = codeByGen ? `Model: ${codeByGen}` : "";
+          const feats = featuresForGen(baseKey, id);
+          const featBits = [];
+          if (feats.retractableTip) featBits.push("Retractable tip (600G)");
+
+          // Color/tone for this popover’s bullets = the finish’s color
+          const [finishName] = baseKey.split("|");
+          const hex = colorHexForFinish(finishName) || getComputedStyle(anchorDot).color;
+          const toneCls = (typeof toneFromHex === "function" && /^#/.test(hex)) ? toneFromHex(hex) : "";
+
+          return `
+            <div class="gen-item">
+              <span
+                class="dot sel ${toneCls}"
+                data-gen="${id}"
+                data-key="${baseKey}"
+                data-kind="color"
+                role="button"
+                tabindex="0"
+                aria-pressed="false"
+                style="color:${hex}"
+              >●</span>
+              <div class="gen-text">
+                <span class="gen-name">${genLabel(id)}</span>
+                ${codeLine ? `<span class="gen-model">${codeLine}</span>` : ``}
+                ${featBits.length ? `<span class="gen-features">• ${featBits.join(" • ")}</span>` : ``}
+              </div>
+            </div>`;
+        }).join("")}
+      </div>
+
+      <div class="actions">
+        <button type="button" class="primary" data-act="save">Save</button>
+        <button type="button" data-act="cancel">Cancel</button>
+      </div>
+      <div class="hint">
+        Multi-select generations here. macOS: Option+Click / Option+Enter. Windows/Linux: Alt+Click / Alt+Enter.
+      </div>
+    `;
+
+    // Initialize state, tone, and handlers
+    const bulletColor = getComputedStyle(anchorDot).color;
+    const toneClass = toneFromCssColor(bulletColor);
+
+    pop.querySelectorAll('.gen-dots .dot.sel').forEach(d=>{
+      // make sure popover bullets are recognized as "color" kind (so checks aren't suppressed)
+      d.dataset.kind = "color";
+      // match the anchor’s color and apply tone for --check contrast
+      d.style.color = bulletColor;
+      d.style.setProperty("--c", bulletColor);     // <— important
+      if (toneClass) d.classList.add(...toneClass.split(" "));
+
+      const gid = d.getAttribute('data-gen');
+      applyGenVariantState(d, baseKey, gid); // will call ensureCheck for owned
+
+      const toggle = ()=>{
+        const k = genKey(baseKey, gid);
+        if (owned[k]) { delete owned[k]; } else { owned[k] = true; }
+        applyGenVariantState(d, baseKey, gid);
+      };
+      d.addEventListener('click', toggle);
+      d.addEventListener('keydown', (e)=>{ if (e.key===" "||e.key==="Enter"){ e.preventDefault(); toggle(); }});
+    });
+
+    // Position
+    const top = window.scrollY + rect.bottom + 8;
+    const left = Math.min(window.scrollX + Math.max(8, rect.left - 80), window.scrollX + document.documentElement.clientWidth - 380);
+    pop.style.top = `${top}px`; pop.style.left = `${left}px`;
+    pop.classList.add("show"); pop.setAttribute("aria-hidden","false");
+
+    const close = ()=>{ pop.classList.remove("show"); pop.setAttribute("aria-hidden","true"); popAnchor = null; };
+    pop.querySelector(".close-x").onclick = close;
+    pop.querySelector('[data-act="cancel"]').onclick = close;
+    pop.querySelector('[data-act="save"]').onclick = ()=>{
+      saveOwned();
+      document.querySelectorAll(`.dot.sel[data-key="${baseKey}"]`).forEach(applyState);
+      close();
+    };
+
+    const onDocClick = (e)=>{ if (!pop.contains(e.target) && e.target!==anchorDot) { cleanup(); } };
+    const onEsc = (e)=>{ if (e.key === "Escape") { cleanup(); } };
+    function cleanup(){ document.removeEventListener("mousedown", onDocClick); document.removeEventListener("keydown", onEsc); close(); }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onEsc);
+    const firstDot = pop.querySelector('.gen-dots .dot.sel');
+    if (firstDot) firstDot.focus();
+  }
+
+  // Bind dot interactions
+  function bindDots(){
+    const dots = Array.from(document.querySelectorAll(".dot.sel"));
+    dots.forEach(dot => {
+      dot.setAttribute("role","button");
+      dot.setAttribute("tabindex","0");
+      applyState(dot);
+
+      // mobile long-press → open popover
+      let pressTimer = null;
+      dot.addEventListener('touchstart', ()=>{
+        pressTimer = setTimeout(()=> openFor(dot, {forcePopover:true}), 500);
+      }, {passive:true});
+      ['touchend','touchmove','touchcancel'].forEach(ev=>{
+        dot.addEventListener(ev, ()=>{ if (pressTimer) { clearTimeout(pressTimer); pressTimer=null; } }, {passive:true});
+      });
+
+      function openFor(targetDot, opts={}){
+        const base = baseKeyFrom(targetDot);
+        const [finish, col] = base.split("|");
+        const gensAvail = getGenerationsFor(finish, col);
+
+        // MODE B: when a Color is selected, just toggle this specific gen — no popover.
+        if (activeColor){
+          // ensure the single bullets in Mode B carry the generation id
+          const gid = targetDot.dataset.gen || "";
+          if (gid){
+            const k = genKey(base, gid);
+            if (owned[k]) { delete owned[k]; } else { owned[k] = true; }
+            saveOwned(); applyState(targetDot);
+            return;
+          }
+          // fallback: if we somehow lack a baked gen id, toggle all gens in this cell
+          gensAvail.forEach(gid=>{
+            const k = genKey(base, gid);
+            if (owned[k]) delete owned[k]; else owned[k] = true;
+          });
+          saveOwned(); applyState(targetDot);
+          return;
+        }
+
+        // If a specific gen is baked into the dot, toggle directly
+        if (targetDot.dataset.gen && !opts.forcePopover){
+          const useKey = genKey(base, targetDot.dataset.gen);
+          if (owned[useKey]) { delete owned[useKey]; } else { owned[useKey] = true; }
+          saveOwned(); applyState(targetDot);
+          return;
+        }
+
+        // If Alt/Option is held or forced, open popover
+        if (opts.forcePopover){ openGenPopover(targetDot, base, gensAvail); return; }
+
+        // If exactly one gen, toggle; else open popover
+        if (gensAvail.length === 1){
+          const useKey = genKey(base, gensAvail[0]);
+          if (owned[useKey]) { delete owned[useKey]; } else { owned[useKey] = true; }
+          saveOwned(); applyState(targetDot);
+          return;
+        }
+        openGenPopover(targetDot, base, gensAvail);
+      }
+
+      function onClick(evt){
+        if (evt && (evt.altKey || (evt.metaKey && evt.shiftKey))){ openFor(dot, {forcePopover:true}); return; }
+        openFor(dot);
+      }
+
+      dot.addEventListener("click", onClick);
+      dot.addEventListener("keydown", (e)=>{
+        if (e.key === " " || e.key === "Enter"){
+          e.preventDefault();
+          if (e.altKey) openFor(dot, {forcePopover:true});
+          else openFor(dot);
+        }
+      });
     });
   }
+
+  // Filters & grouping
+  function syncFilterInterlock(){
+    const genBtnCtl = document.getElementById("genMenuBtn");
+    const colorSel = document.getElementById("colorFilter");
+    const groupSel = document.getElementById("groupMode");
+    const anyGen = activeGenIds.length>0;
+    const anyColor = !!activeColor;
+
+    if (genBtnCtl) { genBtnCtl.disabled = anyColor; genBtnCtl.title = anyColor ? "Disable Color filter to choose generations" : ""; }
+    colorSel.disabled = anyGen;
+    document.getElementById("colorClear").disabled = anyGen;
+
+    // Grouping disabled whenever any filter is active
+    const anyFilter = anyGen || anyColor;
+    groupSel.disabled = anyFilter;
+    groupSel.title = anyFilter ? "Disable filters to change grouping" : "";
+
+    // Body class for check suppression (Mode C only; Mode D shows checks)
+    document.body.classList.toggle("no-check-mode", (groupMode==="rowsColors"));
+  }
+
+  function applyGenFilter(products){
+    if (activeGenIds.length===0) return products;
+    return products.filter(p => (p.generationIds||[]).some(id=> activeGenIds.includes(id)));
+  }
+
+  function genSummary(ids){
+    if (!ids || !ids.length) return "All";
+    const names = ids.map(id => (generationsData.find(g=>g.id===id)?.name || id).replace(/^Gen\s*/i,"Gen "));
+    return names.join(", ");
+  }
+
+  window.setModelIndex = function(obj){ modelIndex = obj || {}; };
+
+  // Main ingress
+  window.setProductData = function(payload){
+    const products = Array.isArray(payload) ? payload : (payload?.products || []);
+    lastProducts = products;
+
+    // Populate color filter once
+    const colorSel = document.getElementById("colorFilter");
+    if (colorSel && colorSel.options.length <= 1) {
+      const finishes = Array.from(new Set(products.map(p => p.finish)))
+        .sort((a, b) => compareFinishes(a, b));
+      const frag = document.createDocumentFragment();
+      finishes.forEach(f => {
+        const opt = document.createElement("option");
+        opt.value = f;
+        opt.textContent = f;
+        frag.appendChild(opt);
+      });
+      colorSel.appendChild(frag);
+    }
+
+    // Update gen button summary
+    const genBtn2 = document.getElementById("genMenuBtn");
+    if (genBtn2) genBtn2.textContent = genSummary(activeGenIds);
+
+    // Choose row builder
+    const filtered = applyGenFilter(products).filter(p => !activeColor || p.finish === activeColor);
+    let rows;
+    if (activeColor){
+      rows = productsToGenRows(activeColor, filtered, generationsData); // Mode B
+    } else if (groupMode === "rowsColors"){
+      rows = productsToRowsColorsMultigen(filtered, generationsData);   // Mode C
+    } else if (groupMode === "rowsGens"){
+      rows = productsToRowsGensMulticolor(filtered, generationsData);   // Mode D
+    } else {
+      rows = productsToRows(filtered);                                  // Mode A
+    }
+    renderMatrix(rows);
+    syncFilterInterlock();
+  };
+
+  // Build & open the gen popup
+  function buildGenMenu(){
+    const genList = document.getElementById("genMenuList");
+    if (!genList) return;
+    genList.innerHTML = "";
+    generationsData.forEach(g=>{
+      const id = `chk_${g.id}`;
+      const lab = document.createElement("label");
+      lab.innerHTML = `<input type="checkbox" id="${id}" value="${g.id}"><span>${g.name}</span>`;
+      genList.appendChild(lab);
+    });
+    activeGenIds.forEach(id=>{
+      const el = genList.querySelector(`input[value="${id}"]`);
+      if (el) el.checked = true;
+    });
+  }
+  function openGenMenu(){
+    const genBtn = document.getElementById("genMenuBtn");
+    const genPanel = document.getElementById("genMenuPanel");
+    const genApply = document.getElementById("genApply");
+    const genCancel= document.getElementById("genCancel");
+    const genAll   = document.getElementById("genAll");
+    const colorSel = document.getElementById("colorFilter");
+    const groupSel = document.getElementById("groupMode");
+    if (!genPanel) return;
+
+    buildGenMenu();
+    genPanel.classList.add("show");
+    genBtn.setAttribute("aria-expanded","true");
+
+    const onDocClick = (e)=>{ if (!genPanel.contains(e.target) && e.target!==genBtn){ cleanup(); } };
+    const onEsc = (e)=>{ if (e.key==="Escape"){ cleanup(); } };
+    function cleanup(){
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onEsc);
+      genPanel.classList.remove("show");
+      genBtn.setAttribute("aria-expanded","false");
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onEsc);
+
+    const closeX = genPanel.querySelector(".close-x");
+    if (closeX) closeX.onclick = cleanup;
+    if (genCancel) genCancel.onclick = cleanup;
+    if (genApply) genApply.onclick = ()=>{
+      const picked = Array.from(genPanel.querySelectorAll('input[type="checkbox"]:checked')).map(i=>i.value);
+      activeGenIds = picked;
+      if (activeGenIds.length>0){
+        activeColor = "";
+        if (colorSel) colorSel.value = "";
+        groupMode = "default"; if (groupSel) groupSel.value="default";
+      }
+      document.getElementById("genMenuBtn").textContent = genSummary(activeGenIds);
+      window.setProductData({products:lastProducts});
+      cleanup();
+    };
+    if (genAll) genAll.onclick = ()=>{
+      activeGenIds = [];
+      document.getElementById("genMenuBtn").textContent = "All";
+      genPanel.querySelectorAll('input[type="checkbox"]').forEach(i=> i.checked=false);
+    };
+  }
+
+  // Bootstrap
+  (function bootstrap(){
+    try{ owned = JSON.parse(localStorage.getItem(KEY) || "{}"); }catch(e){ owned = {}; }
+
+    // Wire controls
+    const genBtn = document.getElementById("genMenuBtn");
+    const colorSel = document.getElementById("colorFilter");
+    const colorClear = document.getElementById("colorClear");
+    const groupSel = document.getElementById("groupMode");
+
+    if (genBtn) genBtn.addEventListener("click", ()=>{
+      const panel = document.getElementById("genMenuPanel");
+      if (panel.classList.contains("show")){
+        panel.classList.remove("show"); genBtn.setAttribute("aria-expanded","false");
+      } else { openGenMenu(); }
+    });
+
+    if (colorSel){
+      colorSel.addEventListener("change", ()=>{
+        activeColor = colorSel.value || "";
+        if (activeColor){
+          activeGenIds = [];
+          const panel = document.getElementById("genMenuPanel");
+          if (panel) panel.classList.remove("show");
+          groupMode = "default"; groupSel.value="default";
+        }
+        window.setProductData({products:lastProducts});
+      });
+      colorClear.addEventListener("click", ()=>{
+        activeColor = ""; colorSel.value = "";
+        window.setProductData({products:lastProducts});
+      });
+    }
+    if (groupSel){
+      groupSel.addEventListener("change", ()=>{
+        groupMode = groupSel.value || "default";
+        window.setProductData({products:lastProducts});
+      });
+    }
+
+    // Reset
+    const btn = document.getElementById("resetOwned");
+    if (btn){
+      btn.addEventListener("click", function(){
+        if (!confirm("Reset all owned marks? This can’t be undone.")) return;
+        localStorage.removeItem(KEY);
+        location.reload();
+      });
+    }
+
+    // Load embedded JSON seed
+    let seed = null;
+    try{
+      const tag = document.getElementById("rotring600Seed");
+      if (tag && tag.textContent.trim()){
+        seed = JSON.parse(tag.textContent);
+      }
+    }catch(e){
+      console.error("Failed to parse embedded JSON:", e);
+    }
+    if (seed && Array.isArray(seed.products) && seed.products.length){
+      generationsData = Array.isArray(seed.generations) ? seed.generations : [];
+      modelIndex = seed.modelIndex || {};
+      window.setProductData({ products: seed.products });
+      // Ensure gen menu label correct
+      const genBtn3 = document.getElementById("genMenuBtn");
+      if (genBtn3) genBtn3.textContent = genSummary(activeGenIds);
+    } else {
+      // No seed → show a simple message row
+      const tbody = document.getElementById("matrixBody");
+      if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:left;color:#f99;">No products loaded. Check the embedded JSON block (id="rotring600Seed").</td></tr>';
+    }
+  })();
 })();
+</script>
+
+<script>
+  // Global error trap so failures show in-table
+  window.onerror = function(msg, src, line, col, err){
+    console.error("JS ERROR:", msg, "at", src, line+":"+col, err);
+    const tb = document.getElementById("matrixBody");
+    if (tb) tb.innerHTML = '<tr><td colspan="9" style="text-align:left;color:#f99;">JS error: '+ String(msg) +' (see console)</td></tr>';
+  };
 </script>
 
 </body>
 </html>
-
